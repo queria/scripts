@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [ "$1" = "--help" -o "$1" = "-h" ];
+then
+	echo "Odstrani radkovani ze vstupu - \\n nahradi mezerou"
+else
+	/bin/sed -ne 'H;${x;s/\n/ /g;p}'
+fi
+

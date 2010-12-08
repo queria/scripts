@@ -1,0 +1,70 @@
+#!/bin/bash
+
+echo "*** Transforms /etc/portage/package.use to  directory ***"
+
+PDIR="/etc/portage/"
+PFILE="package.use"
+
+PTGT=${PDIR}${PFILE}
+
+# is FILE or DIRECTORY? move to directory
+if [ ! -d ${PTGT} ];
+then
+	echo "${PFILE} is not directory ! - moving to ${PTGT}/${PFILE}"
+	PTMP=`tempfile -d ${PDIR}`
+	mv ${PTGT} ${PTMP}
+	mkdir ${PTGT}
+	mv ${PTMP} ${PTGT}/${PFILE}
+else
+	echo "${PFILE} is directory, OK"
+fi
+
+
+echo
+echo "Transform STARTED"
+echo " using ${PTGT}/${PFILE} as source file"
+echo
+
+# foreach LINE in PFILE
+while read LINE
+do
+
+	if [ $LINE -eq "" ];
+	then
+		continue;
+	fi
+
+	if echo $LINE | grep -e '^[\t ]*#';
+	then
+		echo " - skipping comment :: "$LINE
+		continue
+	fi
+	
+	continue
+	# get CATEGory
+	PCAT=`echo ${LINE} | sed "s/^[\t <=>~]*\([a-zA-Z0-9-]*\)\/.*/\\1/"`
+	# get PACKAGE name
+	PPKG=`echo ${LINE} | sed 's/^\([^\/]*\)\/\([^ \t]*\).*/\2/'`
+
+	
+	# exists CATEG dir? - create
+	if [ ! -d ${PTGT}/${PCAT} ];
+	then
+		echo " - ${PCAT} [mkdir]"
+	#	mkdir ${PTGT}/${PCAT}
+	else
+		echo " - ${PCAT}"
+	fi
+	
+	# append LINE into CATEG/PACKAGE
+	echo "      /"${PPKG}
+	# echo ${LINE} >> ${PTGT}/${PCAT}/${PPKG}
+
+done < ${PTGT}/${PFILE}
+# end foreach
+
+echo
+# echo " - removing "${PTGT}/${PFILE}
+
+echo "Transform FINISHED"
+

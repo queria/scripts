@@ -1,0 +1,22 @@
+#!/bin/sh
+
+HELP=true
+
+if [ "${1}" = "umount" ] && [ -d "${2}" ] ;
+then
+	HELP=false
+	su -c "umount '${2}'";
+else
+	if [ -f "${1}" ] && [ -d "${2}" ] ;
+	then
+		HELP=false
+		su -c "mount -t udf,iso9660 '${1}' '${2}' -o loop"
+	fi
+fi
+
+if ${HELP};
+then
+		echo "Zadej dva parametry - prvni je iso soubor, druhy adresar kam pripojit"
+		echo " nebo prvni 'umount' a druhy adresar ktery odpojit"
+fi
+

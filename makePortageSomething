@@ -1,0 +1,54 @@
+#!/bin/bash
+
+if [ -z $1 ] ||  [ "$1" = "-h" -o "$1" = "--help" ];
+then
+	echo
+	echo "Create directories in TargetDir for each one from /usr/portage "
+	echo " Usable when you want full structure of portage categories."
+	echo
+	echo "USAGE:"
+	echo "   makePortageSomething <tgtdir>"
+	echo
+	echo "<tgtdir>: target directory in which new dirs will be created"
+	echo
+
+	exit 1
+else
+	TGTDIR="${1}"
+fi
+
+if [ ! -d "${TGTDIR}" ];
+then
+	echo
+	echo "Error: The given argument is not an directory!"
+	echo
+	exit 1
+fi
+
+# postara se, ze na konci je lomitko
+TGTDIR=`echo ${TGTDIR} | sed "s/\([^\/]\)$/\1\//"`
+
+# ziskat skutecne umisteni portage a prejit do nej
+source /etc/make.conf
+if [ -z $PORTDIR ]; then PORTDIR="/usr/portage"; fi
+
+# pro kazdy adresar v portage
+for DIR in `find ${PORTDIR} -maxdepth 1 -type d | sort`;
+do
+	# nahradit / za \/ aby se mohlo pouzit v sedu (neni zcela bezpecne ... co jine SEDove znaky?
+	SAFEPORTDIR=`echo $PORTDIR | sed "s/\//[\/]/g"` 
+ 	
+	# odstranit './' na zacatku
+	DIR=`echo ${DIR} | sed "s/^${SAFEPORTDIR}\(\/\)\?//"`
+
+	if [ "${DIR}" = "" -o "${DIR}" = "." -o "${DIR}" = ".." ];
+	then
+		continue;
+	fi
+
+	TGT=${TGTDIR}${DIR}
+	
+	# vytvorit adresar v cilovem umisteni
+	mkdir -v ${TGT}
+done
+

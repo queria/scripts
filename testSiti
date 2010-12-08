@@ -1,0 +1,76 @@
+#!/bin/sh
+
+LOGFILE=/tmp/testSitiRes
+IFACE=wlan1
+IPPREP=192.168.
+IPAPP=.13
+IPAPPTST=.254
+
+START=117
+STOP=254
+
+echo >> $LOGFILE
+
+for NUM in `seq $START $STOP`;
+do
+	echo -ne "\rtestuji $NUM z $STOP"
+	ifconfig ${IFACE} $IPPREP$NUM$IPAPP
+	sleep 1
+
+	if ping -c 1 -w 1 $IPPREP$NUM$IPAPPTST &> /dev/null;
+	then
+		echo $IPPREP$NUM$IPAPPTST" ok" >> $LOGFILE
+		echo -e "\r"$IPPREP$NUM$IPAPPTST" ok                    "
+	else
+		echo $IPPREP$NUM$IPAPPTST" bad" >> $LOGFILE
+	fi
+done
+
+echo >> $LOGFILE
+
+START=0
+STOP=254
+IPPREP=10.0.
+IPAPP=13
+IPAPPTST=.1
+
+for NUM in `seq $START $STOP`;
+do
+	echo -ne "\rtestuji $NUM z $STOP"
+	ifconfig ${IFACE} $IPPREP$NUM$IPAPP
+	sleep 1
+
+	if ping -c 1 -w 1 $IPPREP$NUM$IPAPPTST &> /dev/null;
+	then
+		echo $IPPREP$NUM$IPAPPTST" ok" >> $LOGFILE
+		echo -e "\r"$IPPREP$NUM$IPAPPTST" ok                    "
+	else
+		echo $IPPREP$NUM$IPAPPTST" bad" >> $LOGFILE
+	fi
+done
+
+echo >> $LOGFILE
+
+START=0
+STOP=254
+IPPREP=10.0.
+IPAPP=13
+IPAPPTST=.254
+
+for NUM in `seq $START $STOP`;
+do
+	echo -ne "\rtestuji $NUM z $STOP"
+	ifconfig ${IFACE} $IPPREP$NUM$IPAPP
+	sleep 1
+
+	if ping -c 1 -w 1 $IPPREP$NUM$IPAPPTST &> /dev/null;
+	then
+		echo $IPPREP$NUM$IPAPPTST" ok" >> $LOGFILE
+		echo -e "\r"$IPPREP$NUM$IPAPPTST" ok                    "
+	else
+		echo $IPPREP$NUM$IPAPPTST" bad" >> $LOGFILE
+	fi
+done
+
+echo >> $LOGFILE
+

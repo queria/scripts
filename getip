@@ -1,0 +1,18 @@
+#!/bin/sh
+
+DEV="wlan1"
+
+if [ ! -z "$1" ];
+then
+	DEV=$1
+fi
+
+IP=`/sbin/ifconfig ${DEV} 2>/dev/null | grep 'inet' | cut -d : -f2 | cut -d ' ' -f1`
+
+if [ "$IP" = "" ];
+then
+	IP="inactive"
+fi
+
+echo "${IP}"
+

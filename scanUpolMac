@@ -1,0 +1,5 @@
+#!/bin/sh
+
+DATE=`/all/zdrojaky/skripty/getdate`
+su -c "nmap -sP 158.194.178.0/23 -n --scan-delay 1s > /all/texty/upol/mac/mac-"${DATE}".txt"
+

@@ -1,0 +1,17 @@
+#!/bin/sh
+
+if [ -z "$1" -o "$1" = "--help" ];
+then
+	echo "Zadejte nazev ciloveho adresare."
+	echo "Nasledne tam prekopiruji aktualni pwd."
+	exit 1
+fi
+
+echo "1. Hledam adresare"
+DIRALL=$(find -type d)
+
+echo "${DIRALL}" | wc -l
+for DIR in $DIRALL;
+do
+	echo cp -Td --preserve=all "$DIR" "$1"
+done

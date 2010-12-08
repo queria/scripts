@@ -1,0 +1,11 @@
+#!/bin/sh
+# toggles my synaptics touchpad on/off
+
+if [ "$1" == "off" ];
+then
+	synclient TouchpadOff=1
+	exit 0
+fi
+
+synclient TouchpadOff=0
+

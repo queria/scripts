@@ -1,0 +1,30 @@
+#!/bin/sh
+
+
+if [ -z "$1" ];
+then
+	echo "Enter number of note you want to delete"
+	exit 1
+fi
+
+
+FI=`mktemp`
+FI2=`mktemp`
+
+if cat -n /all/texty/poznamky > ${FI};
+then
+	if grep -v "^\W*${1}" ${FI} > ${FI2};
+	then
+		if sed "s/^\W*[0-9]*\t//" ${FI2} >  ${FI};
+		then
+			echo "ok"
+			#cat ${FI}
+			#mv ${FI} /all/texty/poznamky
+			# narozdil od `mv` zachova opravneni poznamek
+			cat ${FI} > /all/texty/poznamky
+		fi
+	fi
+fi
+
+rm -f ${FI2} ${FI}
+

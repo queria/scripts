@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [ "$1" == "usb" -o "$1" == "ntb" ];
+then
+	cp ~/.asoundrc_$1 ~/.asoundrc
+	exit 0
+fi
+
+echo "Usage:"
+echo " play [ntb|usb]"
+exit 1
+

@@ -1,0 +1,15 @@
+#!/bin/sh
+
+while true;
+do
+	if [ `mpc | wc -l` -lt 3 ];
+	then
+		SONG=""
+	else
+		SONG=`mpc | head -n 1`
+	fi
+	#echo "${SONG}"
+	echo "${SONG}" > ~/.psi/tune
+	sleep 5
+done
+

@@ -1,0 +1,10 @@
+#!/bin/sh
+
+while true;
+do
+	SONG=$(/all/zdrojaky/skripty/nowplaying)
+	#echo "${SONG}"
+	echo "${SONG}" > ~/.psi/tune
+	sleep 5
+done
+

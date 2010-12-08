@@ -1,0 +1,26 @@
+#!/bin/bash
+
+
+if [ $# -lt 2 -o "${1}" = "-h" -o "${1}" = "--help" ];
+then
+cat << EOH
+skript prijima minimalne dva parametry:
+	- prvni je co provest (start/stop/status apod)
+	- dalsi jsou povazovany za nazvy sluzeb v /etc/init.d/
+
+napr.:
+rc-multi start apache2 mysql bluetooth mpd
+EOH
+exit 1
+fi
+
+ACTION="${1}"
+shift
+
+while [ $# -gt 0 ];
+do
+	echo "/etc/init.d/${1}" "${ACTION}"
+	/etc/init.d/${1} "${ACTION}"
+	shift
+done
+

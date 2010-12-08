@@ -1,0 +1,44 @@
+#!/bin/bash
+
+#ZTF=/tmp/zoink.tor.page
+ZTD=/all/www/zoink/
+
+[ -d "${ZTD}" ] || (echo "Neexistuje adresar "${ZTD} && exit 1)
+
+if [ $# = 0 ];
+then
+	echo "Zadej argument text hledany ve strance torrent.zoink.it"
+	echo "... nebo \"refresh\" pro znovustazeni stranek."
+	exit 1
+fi
+
+cd "$ZTD"
+
+REF=false
+if [ "$1" = "refresh" ];
+then
+	REF=true
+	#rm $ZTF;
+fi
+
+if $REF ;
+then
+	echo -n "redownloading ... "
+	#links -dump http://torrent.zoink.it/ > $ZTF
+	# aktualizovat index (je-li novejsi)
+	wget --mirror -N http://torrent.zoink.it/index.html
+	# ostatni soubory neaktualizuji - pouze stahnu chybejici
+	wget -r -nc -l inf --no-remove-listing http://torrent.zoink.it/
+	echo "ok"
+fi
+
+$REF && exit 0
+
+echo "searching ..."
+CESTA=${ZTD}"torrent.zoink.it/"
+# CESTA=${CESTA/\/all\/www/http:\/\/localhost}
+CESTA="file://"${CESTA}
+ls -1 torrent.zoink.it | grep -i "$1" | awk '{ print "'$CESTA'"$1 }' | sort
+#grep -i $1 $ZTF | awk '{ print "http://torrent.zoink.it/"$1 }' | sort
+
+exit 0

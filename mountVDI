@@ -1,0 +1,54 @@
+#!/bin/bash
+echo
+echo "** Mount VDI file **"
+echo
+
+# headers
+#     [] X  .  M  S  D  O  S
+#FATH="EB\W+58\W+90\W+4D\W+53\W+44\W+4F\W+53"
+FATHEXDUMP="eb 58 90 4d 53 44 4f 53"
+#     [] R  .  N  T  F  S
+#NTFS="EB\W+52\W+90\W+4E\W+54\W+46\W+53"
+NTFSHEXDUMP="eb 52 90 4e 54 46 53"
+
+if [ -z $1 ] || [ -z $2 ] || [ "${1}" = "-h" -o "${1}" = "--help" ];
+then
+	echo "USAGE: mountVdi </path/to/winxp.vdi> <where to mount> [anything_for_mount_not_-o]"
+	echo
+	echo "Third parametr is passed to mount,"
+	echo "and is appended directly after last '-o option\$HERE'"
+	echo "so when you want to use it for other args instead of -o option,"
+	echo "use third argument as string with space at begining!"
+	echo "example: mountVdi /vbox/vdi/my.vdi /mnt/temp \" -t auto\""
+	echo
+	exit
+fi
+
+if [ ! -f "${1}" ];
+then
+	echo "Given path is not file!"
+	echo ":: ${1}"
+	echo
+	exit
+fi
+
+FS=vfat
+MASK="${FATHEXDUMP}"
+
+if hexdump -C -n 100000 "${1}" | grep -E "${NTFSHEXDUMP}" > /dev/null;
+then
+	MASK="${NTFSHEXDUMP}";
+	FS=ntfs-3g
+fi
+
+echo mount -t ${FS} ${1} ${2} \
+-o loop,ro,umask=000,fmask=007,gid=uzivatele,offset=\
+0x$(hexdump -C -n 100000 "${1}" | grep -E "${MASK}" | head -n 1 | cut -c 1-8)${3}
+
+#mount ${1} ${2} \
+#-o loop,umask=000,fmask=007,gid=uzivatele,offset=\
+#0x$(hdump "${1}" -b 0 100000 | grep -E "${FATH}" | head -n 1 | cut -c 3-6)${3}
+#echo `hd -n 1000000 ${1} | grep "${FATH}" | cut -c 1-8`
+#echo " \\|"
+#echo ")${3} "
+

@@ -1,0 +1,4 @@
+#!/bin/sh
+
+cat -n /all/texty/poznamky | sed "s/^\W*//"
+

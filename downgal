@@ -1,0 +1,47 @@
+#!/bin/sh
+
+URL1="http://example.com/photoset/"
+URL2="/photo/"
+URL3=".png"
+EXT=".png"
+
+AFROM=1
+ATO=5
+
+BFROM=1
+BTO=4
+
+if [ -z $1 ];
+then
+	echo "enter name of /tmp/ subdir in which files will be stored";
+	exit 0
+fi
+
+cd /tmp
+mkdir $1
+cd $1
+
+echo "downloading "$AFROM" to "$ATO
+
+for A in `seq $AFROM $ATO`
+do	
+	#mkdir $A
+	#cd $A
+	echo -n " "$A"/"$ATO": "
+
+	for B in `seq $BFROM $BTO`
+	do
+		echo -n $B" "
+		# echo $URL1$A$URL2$B$URL3
+		#if [ $B -lt 10 ];
+		#then
+			wget $URL1$A$URL2$B$URL3 -O "0"$A"-"$B$EXT > /dev/null 2>&1
+		#else
+		#	wget $URL1$A$URL2$B$URL3 -O $A"_"$B$EXT > /dev/null 2>&1
+		#fi
+	done
+	echo ""
+	#cd ..
+done
+
+pwd

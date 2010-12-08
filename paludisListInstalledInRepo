@@ -1,0 +1,22 @@
+#!/bin/sh
+
+if [ -z ${1} ];
+then
+	echo choose one rep-param from:
+	echo 
+	paludis --list-repositories
+else
+	F=$(mktemp)
+	F2=$(mktemp)
+	SEZNAM=$(paludis --list-packages --repository ${1}|grep "^*" | sed "s/* //");
+	SEZNAM2=$SEZNAM
+	#  SEZNAM2=$(echo $SEZNAM | sed "s/ /:${1} /g")
+	paludis -q $SEZNAM2 | grep -e "installed\|^*" > $F
+	# | cat | grep -B 1 "installed"
+	grep -B 1 "installed" $F
+	
+	rm $F $F2
+fi
+
+# paludis -q $(find ./ -name \*.ebuild | sed -e "s:.ebuild::" -e "s:./::" | awk -F'/' '{print "="$1"/"$3}')
+

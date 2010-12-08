@@ -1,0 +1,27 @@
+#!/bin/bash
+
+N=/dev/null
+
+if ps -ef 2>&1 | grep qmmp 2>&1 | grep -v grep &> $N 
+then
+	echo "qmmp - nepodporovano";
+else
+	if ps -ef 2>&1 | grep amarok 2>&1 | grep -v grep &> $N 
+	then
+		if dcop amarok player isPlaying &> $N;
+		then
+			dcop amarok player nowPlaying
+		fi
+	else
+		if ps -ef 2>&1 | grep mpd 2>&1 | grep -v grep &> $N;
+		then
+			#echo mpd
+			mpc | head -n 1
+		else
+			echo
+			# echo nothing playing
+		fi
+	fi
+fi
+
+

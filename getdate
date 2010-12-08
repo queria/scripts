@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [ ! -z $1 ] && [ "$1"="-h" -o "$1"="--help" ];
+then
+	echo "Prints current date and time in format yymmdd_hh_mm_ss" 
+	echo "suitable for file(log/backup...) names."
+fi
+
+date "+%y%m%d_%H_%M_%S"
+

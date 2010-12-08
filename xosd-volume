@@ -1,0 +1,19 @@
+#!/bin/bash
+
+VOLPERC=$(amixer sget Master|grep "%"|head -n 1| sed "s/.*\[\([0-9]\+\).*/\\1/")
+if amixer sget Master | grep off;
+then
+	VOLPERC=0
+fi
+
+echo $VOLPERC
+
+OSDOPT=""
+OSDOPT="${OSDOPT} -p bottom"
+OSDOPT="${OSDOPT} -A center"
+OSDOPT="${OSDOPT} -o 60"
+OSDOPT="${OSDOPT} -d 1"
+OSDOPT="${OSDOPT} -c white"
+OSDOPT="${OSDOPT} -s 1"
+OSDOPT="${OSDOPT} -b percentage"
+osd_cat ${OSDOPT} -P ${VOLPERC}

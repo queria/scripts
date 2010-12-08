@@ -1,0 +1,13 @@
+#!/bin/bash
+if [ -z "$1" ]
+then
+	DIR="."
+else
+	DIR=$1
+fi
+
+TOT=`find $DIR -iname "*.c*" | wc -l`
+PRG=`find $DIR -iname "*.o*" | wc -l`
+PER=`echo $PRG $TOT | gawk '{ sum += ($1 / $2) * 100 }; END { print sum }'`
+echo "Currently Compiled Package: " $CUR " (" $PER "%)"
+

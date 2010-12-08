@@ -1,0 +1,39 @@
+#!/bin/bash
+
+if [ ! -f "$1" ];
+then
+	echo "Enter path to source file!"
+	exit 1
+fi
+
+SRC="$1"
+
+LAST_EMPTY=true
+#head -n 30 "$SRC" | tail | \
+cat "$SRC" |\
+while read line;
+do
+	HEADERNEWLINE='\n'
+	# if [ $LAST_EMPTY ]; then HEADERNEWLINE=""; fi
+
+	echo "$line" |\
+	sed "s/^==== *\(.*\) *====$/${HEADERNEWLINE}h4. \1\n/" |\
+	sed "s/^=== *\(.*\) *===$/${HEADERNEWLINE}h3. \1\n/" |\
+	sed "s/^== *\(.*\) *==$/${HEADERNEWLINE}h2. \1\n/" |\
+	sed "s/^= *\(.*\) *=$/${HEADERNEWLINE}h1. \1\n/" |\
+	sed "s/'''\(.*\)'''/*\1*/" |\
+	cat
+	#cat > /dev/null
+
+
+	TRIMLINE="${line// /}"
+	TRIMLINE="${TRIMLINE//\t/}"
+
+
+	if [ ${#TRIMLINE} -eq 0 ];
+	then
+		LAST_EMPTY=true
+	else
+		LAST_EMPTY=false
+	fi
+done 

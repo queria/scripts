@@ -1,0 +1,56 @@
+#!/bin/sh
+
+VERBOSE=false
+QS_KAM="/.backup/"
+QS_CO=${QS_KAM}"backup_list"
+STAMP=`getdate`
+TAROPTS="--gzip --preserve-permission --one-file-system"
+
+if [ "${1}" = "-v" ];
+then
+	VERBOSE=true;
+fi
+
+if [ ! -d "${QS_KAM}" ];
+then
+	echo "QS_Backup ERROR: Backup directory does not exist!"
+	exit
+fi
+
+if [ ! -f ${QS_CO} -o ! -r ${QS_CO} ];
+then
+	echo "QS_Backup ERROR: Backup list does not exist - "${QS_CO}
+	exit
+fi
+
+while read QS_SRC
+do
+	
+	if [ -z "${QS_SRC}" -o ! -e "${QS_SRC}" ];
+	then
+		continue; #preskoc prazdne a s neexistujicim cilem
+	fi
+
+	# vezmu zalohovanou cestu, odstranim prvni a posledni lomitko
+	# a ostatni non-ascii znaky nahradim za '_' # !!!!!!!!!!!!!!!!!
+	#	POZOR, v pripade problemu nahrazovat pouze lomitka z cesty
+	QS_TGT=`echo ${QS_SRC} | sed "s/\(^\/\)\|\|\(\/$\)//g" | sed "s/[^a-zA-Z0-9-]/_/g"`
+
+	# pokud jeste neni adresar pro tuto zalohu vytvorim
+	QS_TGTDIR=${QS_KAM}${QS_TGT}
+	if [ ! -d "${QS_TGTDIR}" ];
+	then
+		mkdir "${QS_TGTDIR}"
+	fi
+
+	# takto ziskany retezec pouziji jako 'slozku' na zalohovani v $QS_KAM
+	echo "QS_Backup INFO: creating backup of ${QS_SRC} => ${QS_TGTDIR} ..." 
+
+	if ! tar --create ${TAROPTS} -g ${QS_TGTDIR}"/_status" --file=${QS_TGTDIR}"/"${QS_TGT}"_"${STAMP}".tar.gz" ${QS_SRC} &> /dev/null;
+	then
+		echo "QS_Backup ERROR [${STAMP}]: FAILED - ${QS_TGTDIR}"
+	fi
+	
+done < ${QS_CO} 
+
+

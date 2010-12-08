@@ -1,0 +1,10 @@
+#!/bin/bash
+
+ACT="start"
+
+if [ "${1}" = "stop" ]; then
+	ACT="${1}"
+fi
+
+rc-multi ${ACT} net.eth0 noip ntp-client
+

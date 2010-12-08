@@ -1,0 +1,25 @@
+#!/bin/sh
+
+if [ -z $1 ];
+then
+	echo "Enter day for which you want to know"
+	echo "how many days remains from now."
+	echo "Usage:"
+	echo "\t${0} YYYY/MM/DD"
+	exit 1
+fi
+
+TODAY=$(date "+%s")
+FUTURE=$(date -d $1 "+%s")
+
+
+REMAIN=$(echo "$FUTURE - $TODAY"|bc)
+REMAINDAYS=$(echo "scale=0; ((($REMAIN / 60) / 60) / 24)" | bc)
+if [ $REMAINDAYS -eq 0 -a $REMAIN -gt 0 ];
+then
+	echo "less then one day";
+else
+	echo $REMAINDAYS
+fi
+
+

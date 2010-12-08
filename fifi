@@ -1,0 +1,21 @@
+#!/bin/sh
+
+if [ -z "$2" ];
+then
+	echo "FiFi: Find and Filter"
+	echo "  1. filename pattern"
+	echo "  2. searched text"
+	echo " [3. other args for grep]"
+	echo "prints file names of matching files"
+	echo
+	echo "usage:"
+	echo " $ fifi \\*.php callMyMethod"
+	echo
+	echo "will find in current directory and all subdirs"
+	echo "all files with ending with .php and these"
+	echo "filter using grep for searched string"
+	exit
+fi
+
+find -name "$1" -exec grep -l $2 $3 {} \;
+

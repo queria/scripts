@@ -1,0 +1,4 @@
+
+SIZE=$((512*1024*1024))
+mount -t tmpfs tmpfs -o size=${SIZE} /all/tmp/ram
+chown queria:queria /all/tmp/ram

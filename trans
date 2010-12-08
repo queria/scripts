@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# url = http://slovnik.seznam.cz/?lang=cz_en&q=slovo
+
+SOUBOR=`mktemp -p /tmp/`
+FIRST=$1
+WORD=$2
+
+PROG=`basename $0`
+if [ "$PROG" != "trans" ];
+then
+	FIRST=$PROG
+	WORD=$1
+fi
+
+case $FIRST in
+	"encz" )
+		TRANSLANG="en_cz";;
+	"czen" )
+		TRANSLANG="cz_en";;
+	* )
+		echo "............ chyba argumentu"
+		echo
+		echo "zadejte dva argumenty"
+		echo " - prvni: jazyk prekladu {encz|czen}"
+		echo " - druhy: hledane slovo"
+		rm $SOUBOR
+		exit 1;;
+esac
+
+echo -ne "\rdownloading ..."
+
+URL="http://slovnik.seznam.cz/?lang="$TRANSLANG"&q="$WORD
+
+links -no-connect -dump $URL > $SOUBOR
+echo -ne "\rparsing 1/2 ..."
+
+TOPLINE=`cat $SOUBOR | grep -B 999 -n Vysledky | wc -l `
+echo -ne "\rparsing 2/3 ..."
+REKLLINE=`cat $SOUBOR | grep -B 999 -n Reklama | wc -l `
+REKLLINE=`echo $REKLLINE - 3 | bc `
+ENDLINE=`echo "$REKLLINE - $TOPLINE + 1"|bc `
+echo -e "\r                               "
+
+
+cat $SOUBOR | head -n $REKLLINE | tail -n $ENDLINE
+
+rm $SOUBOR
+
