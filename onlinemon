@@ -1,0 +1,60 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use FindBin;
+use lib $FindBin::Bin;
+use Net::Ping::External qw(ping);
+use POSIX qw(strftime);
+use X::Osd;
+# --------------------------
+
+my $server = "nix.cz";
+my $interval = 3;
+my $osd_interval = 0;
+my $color_on = "Gray";
+my $color_off = "Red";
+
+# --------------------------
+# --------------------------
+# --------------------------
+
+my $osd = X::Osd->new(1);
+$osd->set_font("-*-terminal-*-r-*-*-*-140-*-*-*-*-*-*");
+$osd->set_timeout($osd_interval) if $osd_interval > 0;
+$osd->set_pos(XOSD_top);
+$osd->set_align(XOSD_left);
+
+sub pingtest {
+	my $host = shift;
+	return Net::Ping::External::ping(host => $host);
+}
+
+sub display_msg {
+	my $online = shift;
+	my $ms;
+	if($online){
+		$ms = "Online";
+		$osd->set_colour($color_on);
+	} else {
+		$ms = "OFFLINE";
+		$osd->set_colour($color_off);
+	}
+	print strftime("%Y%m%d-%H%M%S",localtime());
+	print ": ", $ms, "\n";
+	$osd->string(0, $ms);
+}
+
+my $last = -1;
+
+my $ip = join(".", unpack("C4", (gethostbyname($server))[4]));
+
+print "Pinging ", $ip, " [", $server, "] each $interval sec.\n";
+while(1) {
+	my $res = pingtest($server);
+	if($res != $last) {
+		$last = $res;
+		display_msg($res);
+	}
+	sleep($interval);
+}
+
