@@ -24,8 +24,12 @@ for (;;) {
 	chomp($topcmd);
 	$topcmd =~ s/$r_cmd/$1% /;
 
-	printf "\r" if $max_cnt > 1;
-	printf "%s : %s                ", $load, $topcmd;
+	if($max_cnt > 1){
+		printf "\r";
+		printf "%s : %s                ", $load, $topcmd;
+	} else {
+		printf "%s : %s", $load, $topcmd;
+	}
 	$cnt++;
 	last if $max_cnt > 0 and $cnt >= $max_cnt;
 	sleep($sleeptime);
