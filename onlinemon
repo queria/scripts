@@ -24,9 +24,20 @@ $osd->set_timeout($osd_interval) if $osd_interval > 0;
 $osd->set_pos(XOSD_top);
 $osd->set_align(XOSD_left);
 
+sub my_ping {
+	my $host = shift;
+	my $count = shift;
+	my $command = "ping -n -c $count $host";
+	my $devnull = "/dev/null";
+	$command .= " 1>$devnull 2>$devnull";
+	my $exit_status = system($command) >> 8;
+	return 1 if $exit_status == 0;
+	return 0;
+}
 sub pingtest {
 	my $host = shift;
-	return Net::Ping::External::ping(host => $host, count => 3);
+	return my_ping($host, 2);
+	# return Net::Ping::External::ping(host => $host, count => 2);
 }
 
 sub display_msg {
@@ -50,7 +61,7 @@ my $ip = join(".", unpack("C4", (gethostbyname($server))[4]));
 
 print "Pinging ", $ip, " [", $server, "] each $interval sec.\n";
 while(1) {
-	my $res = pingtest($server);
+	my $res = pingtest($ip);
 	if($res != $last) {
 		$last = $res;
 		display_msg($res);
