@@ -8,7 +8,7 @@ import urllib.request
 
 feed_url = 'http://ipv6.he.net/exhaustionFeed.php?platform=json'
 feed_cache = '/tmp/ipv6he_stats.cache'
-cache_timeout = 133 # minutes
+cache_timeout = 1330 # minutes
 
 # ------------------------
 
