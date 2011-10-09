@@ -167,9 +167,9 @@ class Printer
 
 	def print_downloads(downloads)
 		out('<div class="downloads">')
-		out("<div class=\"count\">Found #{downloads.size} entries</div>")
-		downloads.each do |down|
-			out('<div class="download">' +
+		out("<div class=\"count\">Found #{downloads.size} entries (displayed <span id=\"displayedCount\">#{downloads.size}</span>):</div>")
+		downloads.each_with_index do |down, idx|
+			out('<div class="download">' + idx.to_s + ') ' +
 			"<a target=\"_blank\" href=\"#{down['url']}\">#{down['name']}</a>" +
 			' - '+down['size']+' - '+down['desc'] +
 			'</div>')
@@ -189,8 +189,42 @@ class Printer
 		out('<style>')
 		out('.error { color:red; }')
 		out('.download { font-size:11px; }')
-		out('.log { color: gray; font-size:x-small; }')
+		out('.log { color: #ccc; background-color:#333; font-size:x-small; margin-top: 2em; border-top: 1px solid gray; }')
+		out('.log { height: 1.1em; overflow:hidden;}')
+		out('.log:hover { height: auto; }')
 		out('</style>')
+		out('<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>')
+		out('<script type="text/javascript">')
+		out('$(document).ready(function() {')
+		out('	var filterInput = $("#filter");')
+		out('	var filterTimeOut = 0;')
+		out('	var lastFilter = "";')
+		out('	var allDown = $(".download");')
+		out('	var displayedCount = $("#displayedCount");')
+		out('	var doFilter = function () { ')
+		out('		var fv = $.trim(filterInput.val());')
+		out('		if( fv == lastFilter ) { return; } else { lastFilter = fv; }')
+		out('		var displ = 0;')
+		out('		allDown.each(function(){')
+		out('			var d = $(this);')
+		out('			if(fv == "" || d.text().indexOf(fv) != -1) {')
+		out('				d.show();')
+		out('				displ++;')
+		out('			} else { ')
+		out('				d.hide();')
+		out('			}')
+		out('		});')
+		out('		displayedCount.text(displ);')
+		out('	};')
+		out('	var requestFilter = function () { ')
+		out('		clearTimeout(filterTimeOut);')
+		out('		filterTimeOut = setTimeout(doFilter, 250);')
+		out('	};')
+		out('	filterInput.bind("change", requestFilter);')
+		out('	filterInput.bind("input", requestFilter);')
+		out('	filterInput.bind("keyup", requestFilter);')
+		out('});')
+		out('</script>')
 		out('</head>')
 		out('<body><h1>CZShare Search</h1>')
 		out('<form action="" method="post"><div>')
@@ -198,6 +232,7 @@ class Printer
 		out('<input type="text" name="term" id="term" value="'+term+'" />')
 		out('<input type="submit" value="Search" />')
 		out('</div></form>')
+		out('<div>Filter results: <input type="text" id="filter" /></div>');
 		$stdout.flush
 	end
 
@@ -210,6 +245,7 @@ class Printer
 
 	def print_logs
 		out('<div class="log">')
+		out('Progress log:<br />')
 		Logger.messages.each do |msg|
 			out('<div class="message">')
 			out(CGI.escapeHTML(msg))
