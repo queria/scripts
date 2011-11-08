@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
+### remove number 3 ^^^ from the end for python 2.x
 import os
 import json
 import time
-import urllib.request
+try:
+    # for python 3:
+    from urllib.request import urlopen
+except ImportError:
+    # for python 2:
+    from urllib2 import urlopen
 
 # ------------------------
 
@@ -43,7 +49,7 @@ def get_data(feed_url, feed_cache, cache_timeout):
         pass
 
     if not data:
-        feed_source = urllib.request.urlopen(feed_url).read().decode('utf-8')
+        feed_source = urlopen(feed_url).read().decode('utf-8')
         with open(feed_cache, 'w') as cache:
             cache.write(feed_source)
         data = json.loads(feed_source)
