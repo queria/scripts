@@ -1,0 +1,133 @@
+#!/bin/bash
+
+# you have to  'clone' sources of your app from git into
+# your ~/.wine_qt/drive_c/YOUR_APP_NAME
+# then call this script like
+# $ buildqtwine -n YOUR_APP_NAME
+# then when everything will go fine
+# you will get zip file into current dir (pwd)
+
+
+### by default when project was not opened in qtcreator and so ...
+### ... qmake does NOT prepare shadow build environment
+### so some parts are commented out by default, some are changed
+### if you need to build and grap exe from other directory
+### then the one with source look for # NO_SHADOW comment ;)
+
+status_info () {
+	echo -e "\033[01;33m**** $1 ****\033[00m"
+}
+finish () {
+	[ ! -z "$TMP" -a -d "$TMP" ] && rm -rf "$TMP"
+	[ ! -z "$1" ] && echo -e "\033[01;31mFinishing:\033[00m $1"
+	exit
+}
+
+APP=""
+PLACEFORZIP=$(pwd)
+
+DO_MAKE=true
+DO_QMAKE=false
+DO_ZIP=true # until 'publish' part will be ported, do_zip is only possible end
+
+# STAMP_APPEND="" # for version etc
+
+while getopts hqsn: flag
+do
+	# few opts are missing ... 'publish' part not ported yet
+	case $flag in
+	q)
+		DO_QMAKE=true
+		;;
+	s)
+		DO_MAKE=false
+		;;
+	n)
+		APP=${OPTARG}
+		;;
+	?|h)
+		printf "Use: 
+  -h       to show this usage help
+  -n APP   to specify which app you want to build (REQUIRED)
+  -s       to skip make
+  -q       to run qmake\n"
+		finish 
+		;;
+	esac
+done
+
+[ -z "${APP}" ] && finish "No app specified ... see -h for help"
+
+# here is something missing ... 'publish' opts checking not ported yet
+
+trap finish TERM EXIT
+
+STAMP=$(date "+%Y-%m-%d${STAMP_APPEND}")
+
+TMP=$(mktemp -d "/tmp/${APP}_build.XXXXX")
+[ -z "$TMP" -o ! -d "$TMP" ] && finish "creating temp dir failed"
+
+WINEPREFIX=~/.wine_qt
+
+APPPATH="${WINEPREFIX}/drive_c/${APP}" # without end-slash !
+
+status_info "refreshing sources"
+cd "${APPPATH}" || finish "no source dir"
+git pull || finish "git pull failed"
+
+##### version disabled until next rewrite (with config etc)
+#VERSION_H="./src/version.h"
+#echo "#ifndef VERSION_H" > ${VERSION_H}
+#echo "#define VERSION_H" >> ${VERSION_H}
+#echo "" >> ${VERSION_H}
+#echo "#define ${APP}_VERSION \"${STAMP}\"" >> ${VERSION_H}
+#echo "" >> ${VERSION_H}
+#echo "#endif // VERSION_H" >> ${VERSION_H}
+
+if $DO_QMAKE;
+then
+	status_info "running qmake"
+	WINEPREFIX="${WINEPREFIX}" wine "c:\\qtsdk\\desktop\\qt\\4.7.4\\mingw\\bin\\qmake.exe" "C:\\${APP}\\${APP}.pro" -r -spec win32-g++ "CONFIG+=release" || finish "qmake failed"
+else
+	status_info "skipping qmake"
+fi
+
+if $DO_MAKE;
+then
+	status_info "running make"
+	# cd "${APPPATH}-build-release" || finish "no release dir"  ### NO_SHADOW (uncomment + tweak for shadow building)
+	WINEPREFIX="${WINEPREFIX}" wine "C:\\QtSDK\\mingw\\bin\\mingw32-make" -f Makefile.Release || finish "make failed"
+else
+	status_info "skipping make"
+fi
+
+#cd "${APPPATH}" || finish "no source dir"
+#git checkout ${VERSION_H}
+
+status_info "preparing export files"
+TMPEDIR="${APP}-${STAMP}"
+TMPEPATH="${TMP}/${TMPEDIR}/"
+mkdir -p "$TMPEPATH" || finish "mkdir temp export dir failed"
+
+SRC="${WINEPREFIX}/drive_c/QtSDK/Desktop/Qt/4.7.4/mingw/bin/"
+cp "${WINEPREFIX}/drive_c/${APP}/release/${APP}.exe" "$TMPEPATH" || finish "copy exe - failed" ### NO_SHADOW (tweak path to exe)
+### this is VERY fragile part ... i have only one machine/wine/qt use case ... so if paths, versions, etc at your place
+### differs from these, let me know and will try to make this code more "abstract" ;)
+cp "$SRC"{mingwm10.dll,libgcc_s_dw2-1.dll} "$TMPEPATH" || finish "copy mingw/gcc libraries - failed"
+cp "$SRC"{QtCore4.dll,QtGui4.dll,QtNetwork4.dll,QtScript4.dll,QtXml4.dll} "$TMPEPATH" || finish "copy qt libraries - failed"
+echo "${STAMP}" >> "${TMPEPATH}version.txt"
+
+# here is something missing ... 'publish' part not ported yet
+
+if $DO_ZIP;
+then
+	cd "${TMP}" || finish "switch to export dir failed"
+	status_info "exporting build results"
+	zip -9 -r "${TMPEDIR}.zip" "${TMPEDIR}" || finish "packing export dir failed"
+
+	status_info "moving exported file to ${PLACEFORZIP}/${TMPEDIR}.zip"
+	mv "${TMPEDIR}.zip" "${PLACEFORZIP}/${TMPEDIR}.zip"
+fi
+
+status_info "All done"
+
