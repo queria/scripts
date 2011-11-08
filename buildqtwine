@@ -1,18 +1,6 @@
 #!/bin/bash
 
-# you have to  'clone' sources of your app from git into
-# your ~/.wine_qt/drive_c/YOUR_APP_NAME
-# then call this script like
-# $ buildqtwine -n YOUR_APP_NAME
-# then when everything will go fine
-# you will get zip file into current dir (pwd)
-
-
-### by default when project was not opened in qtcreator and so ...
-### ... qmake does NOT prepare shadow build environment
-### so some parts are commented out by default, some are changed
-### if you need to build and grap exe from other directory
-### then the one with source look for # NO_SHADOW comment ;)
+### FOR SOME DOCUMENTATION/NOTES SEE BOTTOM OF THIS FILE
 
 status_info () {
 	echo -e "\033[01;33m**** $1 ****\033[00m"
@@ -75,7 +63,7 @@ status_info "refreshing sources"
 cd "${APPPATH}" || finish "no source dir"
 git pull || finish "git pull failed"
 
-##### version disabled until next rewrite (with config etc)
+### version disabled until next rewrite (with config etc)
 #VERSION_H="./src/version.h"
 #echo "#ifndef VERSION_H" > ${VERSION_H}
 #echo "#define VERSION_H" >> ${VERSION_H}
@@ -95,7 +83,7 @@ fi
 if $DO_MAKE;
 then
 	status_info "running make"
-	# cd "${APPPATH}-build-release" || finish "no release dir"  ### NO_SHADOW (uncomment + tweak for shadow building)
+	# cd "${APPPATH}-build-release" || finish "no release dir"  # NO_SHADOW_NOTE (uncomment + tweak for shadow building)
 	WINEPREFIX="${WINEPREFIX}" wine "C:\\QtSDK\\mingw\\bin\\mingw32-make" -f Makefile.Release || finish "make failed"
 else
 	status_info "skipping make"
@@ -110,9 +98,9 @@ TMPEPATH="${TMP}/${TMPEDIR}/"
 mkdir -p "$TMPEPATH" || finish "mkdir temp export dir failed"
 
 SRC="${WINEPREFIX}/drive_c/QtSDK/Desktop/Qt/4.7.4/mingw/bin/"
-cp "${WINEPREFIX}/drive_c/${APP}/release/${APP}.exe" "$TMPEPATH" || finish "copy exe - failed" ### NO_SHADOW (tweak path to exe)
-### this is VERY fragile part ... i have only one machine/wine/qt use case ... so if paths, versions, etc at your place
-### differs from these, let me know and will try to make this code more "abstract" ;)
+cp "${WINEPREFIX}/drive_c/${APP}/release/${APP}.exe" "$TMPEPATH" || finish "copy exe - failed" # NO_SHADOW_NOTE (tweak path to exe)
+# this is VERY fragile part ... i have only one machine/wine/qt use case ... so if paths, versions, etc at your place
+# differs from these, let me know and will try to make this code more "abstract" ;)
 cp "$SRC"{mingwm10.dll,libgcc_s_dw2-1.dll} "$TMPEPATH" || finish "copy mingw/gcc libraries - failed"
 cp "$SRC"{QtCore4.dll,QtGui4.dll,QtNetwork4.dll,QtScript4.dll,QtXml4.dll} "$TMPEPATH" || finish "copy qt libraries - failed"
 echo "${STAMP}" >> "${TMPEPATH}version.txt"
@@ -130,4 +118,30 @@ then
 fi
 
 status_info "All done"
+
+#### INSTALL Qt into/under Wine
+# first ... downlod Qt SDK from it's current public download place
+# (maybe http://qt.nokia.com/downloads/sdk-windows-cpp-offline ?)
+# then install it inside wine
+# $ WINEPREFIX=~/.wine_qt wine ~/Downloads/Qt_SDK_Win_offline_v1_1_4_en.exe 
+# and this should be fine ;)
+# of course some path/version numbers will be in future changed
+# and this script will stop to work ... I will try to fix it
+# but if you will run into such problem before I do just let me know ;)
+
+#### PREPARE YOUR PROJECT/APP
+# you have to  'clone' sources of your app from git into
+# your ~/.wine_qt/drive_c/YOUR_APP_NAME
+# then call this script like
+# $ buildqtwine -n YOUR_APP_NAME
+# then when everything will go fine
+# you will get zip file into current dir (pwd)
+
+
+#### NO_SHADOW_NOTE
+# - by default shadow build is prepared only
+#   when project was opened in qtcreator (...)
+# - because of this, some parts are commented out by default, some are changed
+# - if you need to build and grab exe from other directory
+#   then the one with sources look for # NO_SHADOW_NOTE comment ;)
 
