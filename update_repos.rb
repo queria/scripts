@@ -24,12 +24,16 @@ def help
   * ignore_repos: colon separated list of repository names to skip
       (from example above we could say 'books.git:etc.git')
 
+  * run_after: string which will be executed after update
+      (some shell commands etc, optional)
+
  so example config.yml could be:
    ---
    source_path: '/home/git/repositories'
    target_path: '/home/redmine/external_repos'
    git_baseurl: 'git@github.com:'
    ignore_repos: 'books.git:etc.git'
+   run_after: 'wget -O /dev/null http://redmine.domain/sys/fetch_changesets?key=xyz'
    ...
  
  ---------------------------------------------------------
@@ -156,4 +160,8 @@ update_repos(
 	git_baseurl,
 	target_path,
 	find_repos(source_path, ignore_names))
+
+if config['run_after']
+	`#{config['run_after']}`
+end
 
