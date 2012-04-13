@@ -26,13 +26,14 @@ NOTIFYOPTS="-e DELETE_SELF"
 
 while inotifywait $NOTIFYOPTS $FILE > /dev/null 2>&1;
 do
-  echo ""
-  echo "-------------[  running on change  ]-----------"
   NEWSUM=$($SUMMER $FILE)
   if [ "$OLDSUM" != "$NEWSUM" ];
   then
     OLDSUM="$NEWSUM"
+    echo ""
+    echo "-------------[  running on change  ]-----------"
     eval "$@"
+    echo "-----------------------------------------------"
   fi
 done
 
