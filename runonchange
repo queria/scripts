@@ -1,0 +1,27 @@
+#!/bin/bash
+
+FILE="$1"
+shift
+
+if [ ! -f "$FILE" ];
+then
+  echo "first argument has to be path to monitored file"
+  exit 1
+fi
+
+
+SUMMER=$(which sha1sum)
+OLDSUM=$($SUMMER $FILE)
+NEWSUM=
+
+NOTIFYOPTS="-e DELETE_SELF"
+
+while inotifywait $NOTIFYOPTS $FILE > /dev/null 2>&1;
+do
+  NEWSUM=$($SUMMER $FILE)
+  if [ "$OLDSUM" != "$NEWSUM" ];
+  then
+    OLDSUM="$NEWSUM"
+    eval "$@"
+  fi
+done
