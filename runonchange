@@ -1,5 +1,13 @@
 #!/bin/bash
 
+INOTIFY=$(which inotifywait)
+if [ -z "$INOTIFY" -o ! -x "$INOTIFY" ];
+then
+  echo "This script requires inotifywait:"
+  echo "- please install package inotify-tools (or equiv for you distro)."
+  exit 2
+fi
+
 FILE="$1"
 shift
 
@@ -18,6 +26,8 @@ NOTIFYOPTS="-e DELETE_SELF"
 
 while inotifywait $NOTIFYOPTS $FILE > /dev/null 2>&1;
 do
+  echo ""
+  echo "-------------[  running on change  ]-----------"
   NEWSUM=$($SUMMER $FILE)
   if [ "$OLDSUM" != "$NEWSUM" ];
   then
@@ -25,3 +35,5 @@ do
     eval "$@"
   fi
 done
+
+echo "finished"
