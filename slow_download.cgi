@@ -19,13 +19,13 @@ if cgi.key?('pattern') and cgi['pattern'].length > 0 and cgi['pattern'][0].lengt
 end
 if cgi.key?('length')
 	ln = cgi['length'].to_i
-	if ln > 0 and ln < 500
+	if ln > 0 and ln < 50000
 		length = ln
 	end
 end
 if cgi.key?('speed')
 	sp = cgi['speed'].to_i
-	if sp > 0 and sp < 400
+	if sp > 0 and sp < 4000
 		speed = sp
 	end
 end
