@@ -1,5 +1,11 @@
 #!/bin/bash
 
+OFF=false
+if amixer sget Master | grep off;
+then
+	OFF=true
+fi
+
 case "x$1" in
 	"x-h" | "x--help")
 		NM=$(basename $0)
@@ -16,9 +22,14 @@ case "x$1" in
 		amixer sset Master,0 5- > /dev/null
 		;;
 	"xtoggle")
-		amixer sset Master,0 toggle > /dev/null
+		if $OFF; then
+			amixer sset Master,0 on > /dev/null
+			amixer sset PCM,0 on > /dev/null
+		else
+			amixer sset Master,0 off > /dev/null
+		fi
 		;;
-	esac
+esac
 
 VOLPERC=$(amixer sget Master|grep "%"|head -n 1| sed "s/.*\[\([0-9]\+\)%.*/\\1/")
 if amixer sget Master | grep off;
