@@ -9,5 +9,6 @@ then
 	exit 1
 fi
 
-git log --name-status -"${1}" | grep "^[ADM]\W" | awk '{ print $2 }' | sort -u
+git log --name-status -"${1}" | grep "^[AM]\W" | awk '{ print $2 }' | sort -u
+git log --name-status -"${1}" | grep "^[D]\W" | awk '{ print "--"$2 }' | sort -u
 
