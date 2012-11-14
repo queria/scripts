@@ -16,7 +16,7 @@ else
 		if ps -ef 2>&1 | grep mpd 2>&1 | grep -v grep &> $N;
 		then
 			#echo mpd
-			mpc | head -n 1
+			mpc current
 		else
 			echo
 			# echo nothing playing
