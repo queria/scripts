@@ -5,19 +5,24 @@
 SOUBOR=`mktemp -p /tmp/`
 FIRST=$1
 WORD=$2
+VERBOSE=false
 
 PROG=`basename $0`
 if [ "$PROG" != "trans" ];
 then
 	FIRST=$PROG
 	WORD=$1
+    if [[ "$2" == "-v" || "$2" == "--verbose" ]]
+    then
+        VERBOSE=true
+    fi
 fi
 
 case $FIRST in
 	"encz" )
-		TRANSLANG="en_cz";;
+		TRANSLANG="en-cz";;
 	"czen" )
-		TRANSLANG="cz_en";;
+		TRANSLANG="cz-en";;
 	* )
 		echo "............ chyba argumentu"
 		echo
@@ -30,20 +35,26 @@ esac
 
 echo -ne "\rdownloading ..."
 
-URL="http://slovnik.seznam.cz/?lang="$TRANSLANG"&q="$WORD
+URL="http://slovnik.seznam.cz/"$TRANSLANG"/word/?q="$WORD
 
 links -no-connect -dump $URL > $SOUBOR
 echo -ne "\rparsing 1/2 ..."
 
-TOPLINE=`cat $SOUBOR | grep -B 999 -n Vysledky | wc -l `
+TOPLINE=`cat $SOUBOR | grep -B 999 -n "Prekladovy slovnik" | wc -l `
+TOPLINE=$(($TOPLINE + 2))
 echo -ne "\rparsing 2/3 ..."
-REKLLINE=`cat $SOUBOR | grep -B 999 -n Reklama | wc -l `
-REKLLINE=`echo $REKLLINE - 3 | bc `
-ENDLINE=`echo "$REKLLINE - $TOPLINE + 1"|bc `
+if $VERBOSE
+then
+    STOPLINE=`cat $SOUBOR | grep -B 999 -n "Tiraz" | wc -l `
+else
+    STOPLINE=`cat $SOUBOR | grep -B 999 -n "Pokrocila gramatika" | wc -l `
+fi
+STOPLINE=$(($STOPLINE - 3))
+ENDLINE=`echo "$STOPLINE - $TOPLINE + 1"|bc `
 echo -e "\r                               "
 
 
-cat $SOUBOR | head -n $REKLLINE | tail -n $ENDLINE
+head -n $STOPLINE $SOUBOR | tail -n $ENDLINE | grep -v "Prehrat zvuk"|grep -v "Pridat do mych slov"
 
 rm $SOUBOR
 
