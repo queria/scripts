@@ -1,4 +1,7 @@
 #!/bin/sh
 
-/usr/bin/xset -display :0.0 dpms force off
+sleep 0.5
+STATE=off
+[[ $(basename $0) == "dpmsOn" || "x$1" == "xon" ]] && STATE=on
+/usr/bin/xset -display :0.0 dpms force $STATE
 
