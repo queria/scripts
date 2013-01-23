@@ -10,7 +10,7 @@ fi
 
 # if specified, otherwise try autodetection
 if [[ -z "$CONFIG" ]]; then
-    if xrandr -q | grep "HDMI1 connected"; then
+    if xrandr -q | grep "HDMI3 connected"; then
         CONFIG=work
     elif [[ $(xrandr -q | grep " connected "|wc -l) == 1 ]]; then
         CONFIG=default
@@ -22,7 +22,7 @@ fi
 
 case $CONFIG in
     work)
-        xrandr --output LVDS1 --auto --right-of HDMI1 --output HDMI1 --auto --primary
+        xrandr --output LVDS1 --auto --right-of HDMI3 --output HDMI3 --auto --primary
         ;;
     default)
         # use just display of nb
