@@ -1,0 +1,31 @@
+#!/bin/bash
+
+if [[ "$1" == "--help" ]]; then
+    echo "  lists history of issued yum commands"
+    echo "  from new to oldest"
+    echo ""
+    echo "Usage:"
+    echo " $0 [max_count] [start_from]"
+    echo ""
+    echo " $0 20"
+    echo "  lists last 20 commands"
+    echo " $0 20 10"
+    echo " list 20 commands used before last 10 commands"
+fi
+ALL=""
+SHIFT=""
+TRIM=""
+if [[ ! -z "$1" ]]; then
+    ALL="all"
+    TRIM="| head -n $1";
+    if [[ ! -z "$2" ]]; then
+        SHIFT="| tail -n +$(($2 + 1))";
+    fi
+fi
+TIDS_CMD="yum history list $ALL | grep '^ *[0-9]' $SHIFT $TRIM|awk '{print \$1}'  |sort -nr"
+for TID in $(eval $TIDS_CMD); do
+    CMDL=$(yum history info $TID | grep "Command Line" | sed "s/Command Line   ://");
+    echo -n "$TID# $CMDL";
+    echo ""
+done
+
