@@ -26,7 +26,7 @@ case $CONFIG in
         ;;
     default)
         # use just display of nb
-        xrandr --output LVDS1 --auto --rotate normal --reflect normal --primary
+        xrandr --output HDMI3 --off --output LVDS1 --auto --rotate normal --reflect normal --primary
         ;;
     -h|--help|help|*)
         echo "Usage:"
