@@ -40,14 +40,14 @@ URL="http://slovnik.seznam.cz/"$TRANSLANG"/word/?q="$WORD
 links -no-connect -dump $URL > $SOUBOR
 echo -ne "\rparsing 1/2 ..."
 
-TOPLINE=`cat $SOUBOR | grep -B 999 -n "Prekladovy slovnik" | wc -l `
+TOPLINE=`cat $SOUBOR | grep -B 999 -n "Překladový slovník" | wc -l `
 TOPLINE=$(($TOPLINE + 2))
 echo -ne "\rparsing 2/3 ..."
 if $VERBOSE
 then
-    STOPLINE=`cat $SOUBOR | grep -B 999 -n "Tiraz" | wc -l `
+    STOPLINE=`cat $SOUBOR | grep -B 999 -n "Tiráž" | wc -l `
 else
-    STOPLINE=`cat $SOUBOR | grep -B 999 -n "Pokrocila gramatika" | wc -l `
+    STOPLINE=`cat $SOUBOR | grep -B 999 -n "Pokročilá gramatika" | wc -l `
 fi
 STOPLINE=$(($STOPLINE - 3))
 ENDLINE=`echo "$STOPLINE - $TOPLINE + 1"|bc `
