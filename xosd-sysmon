@@ -1,11 +1,15 @@
 #!/bin/bash
 
-OSD_POS="-p top -A right -i 20"
+OSD_POS="-p top -A center -i 20"
 OSD_FONT="-misc-fixed-medium-r-*-*-*-100-*-*-*-*-*-*"
 OSD_COLOR="-c yellow -O 1 -u black"
 CPU_SENSOR="temp1" #Core
 
-echo "starting"
+for XSPID in $(ps -U $UID|grep xosd-sysmon|grep -v grep|awk '{ print $1 }'); do
+    # ensure only one instance per user
+    [[ "$XSPID" == "$$" ]] && continue
+    kill $XSPID &> /dev/null;
+done
 
 if [ "$1" = "test" ];
 then
@@ -80,4 +84,3 @@ do
     sleep $SLEEP
 done | $CMD
 
-echo "exiting"
