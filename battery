@@ -15,6 +15,11 @@ do
 
 	[ "${POWER_SUPPLY_PRESENT}" == "1" ] || continue;
 
+    [[ -z "$POWER_SUPPLY_CHARGE_NOW" ]] \
+        && POWER_SUPPLY_CHARGE_NOW="$POWER_SUPPLY_ENERGY_NOW"
+    [[ -z "$POWER_SUPPLY_CHARGE_FULL" ]] \
+        && POWER_SUPPLY_CHARGE_FULL="$POWER_SUPPLY_ENERGY_FULL"
+
 	DELIM=" ~ "
 	echo -n "${POWER_SUPPLY_NAME}"
 	echo -n "${DELIM}"
