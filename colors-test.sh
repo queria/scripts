@@ -1,6 +1,7 @@
 #!/bin/bash
 
 MSG="$*"
+[[ -z "$MSG" ]] && read -t 10 -p "Type message or press enter" MSG
 [[ -z "$MSG" ]] && MSG="test message"
         #echo -e "$C$CTP-$CLR 〒review/afazekas/unify-wait\033[00m";
 for CLR in $(seq 40); do
