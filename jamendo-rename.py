@@ -8,6 +8,13 @@ from pprint import pprint as pp
 
 _debug = True
 
+class SongError(ValueError):
+    pass
+class AlbumError(ValueError):
+    pass
+class ArtistError(ValueError):
+    pass
+
 def safe(text):
     text = re.sub('[^a-zA-Z0-9-]+','_', text)
     if text.endswith('_'):
@@ -35,13 +42,28 @@ def rename_artist(artist):
     new_path = os.path.join(prefix, new_artist)
 
     if orig_path == new_path:
-        print_ren('-', 'already done', orig_path, '')
+        print_ren('-', 'already done', orig_path, '-\'\'-')
     else:
         print_ren('A', 'artist', orig_path, new_path)
 
         os.rename(orig_path, new_path)
 
     return (prefix, new_artist)
+
+def split_artist_album(prefix, artist_album):
+    m = re.match(
+        '^(.*)_-_(.*)_-_[a-z0-9]+_---_Jamendo_-_.*',
+        artist_album)
+    if not m:
+        raise ArtistError(artist_album+' XXX')
+    artist = m.group(1)
+    new_dir = os.path.join(prefix, artist)
+    if not os.path.isdir(new_dir):
+        os.mkdir(new_dir)
+    os.rename(
+        os.path.join(prefix, artist_album),
+        os.path.join(new_dir, artist_album.replace('_',' ')))
+    return artist
 
 def rename_album(prefix, artist, album):
     # Album directory name pattern:
@@ -63,7 +85,7 @@ def rename_album(prefix, artist, album):
         os.rename(orig_path, new_path)
         return album
     else:
-        raise ValueError('Invalid album name {0}'.format(
+        raise AlbumError('Invalid album name {0}'.format(
             os.path.join(prefix, artist, album)))
 
 def rename_song(prefix, artist, album, song):
@@ -79,7 +101,7 @@ def rename_song(prefix, artist, album, song):
         orig_path = os.path.join(prefix, artist, album, song)
         new_path = os.path.join(prefix, artist, album, new_song)
         if os.path.exists(new_path):
-            raise ValueError('Target song file already exists: {0}'.format(
+            raise SongError('Target song file already exists: {0}'.format(
                 new_path))
         print_ren('S', 'song', orig_path, new_path)
         os.rename(orig_path, new_path)
@@ -93,10 +115,14 @@ def process_album(prefix, artist, album):
 
 def process_artist(artist):
     prefix, artist = rename_artist(artist)
+    has_albums = False
     for album in os.listdir(artist):
+        if not os.path.isdir(os.path.join(prefix, artist, album)):
+            continue
         try:
             process_album(prefix, artist, album)
-        except (ValueError,OSError), err:
+            has_albums = True
+        except (AlbumError,OSError), err:
             if _debug:
                 print_skip('Unable to process album {0}'.format(
                     os.path.join(artist, album)))
@@ -104,12 +130,20 @@ def process_artist(artist):
                     traceback.extract_tb(sys.exc_traceback)[-1][1],
                     err.args))
                 #traceback.print_exc(err)
+    if not has_albums:
+        process_artist(
+            os.path.join(
+                prefix, split_artist_album(prefix, artist)))
+
 
 if __name__ == '__main__':
     help_req = ( '-h' in sys.argv or '--help' in sys.argv)
     if not help_req and len(sys.argv) > 1:
         for artist in sys.argv[1:]:
-            process_artist(artist)
+            try:
+                process_artist(artist)
+            except ArtistError, e:
+                print_skip(str(e))
     else:
         print('Specify absolute or relative path to artist folders,\n'
               ' which contains unpacked jamendo albums.')
