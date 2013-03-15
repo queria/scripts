@@ -1,0 +1,14 @@
+#!/bin/bash
+
+FMT="\n"
+FMT="${FMT}/===================[ TIME: ]=======================\n"
+FMT="${FMT}| Time:  %U user  %S system  %E elapsed\n"
+FMT="${FMT}| CPU: %P\n"
+FMT="${FMT}| MemUse: %XK text  +  %DK data ... %MK maxRSS\n"
+FMT="${FMT}| I/O: %I / %O\n"
+FMT="${FMT}| PageFaults: %F major + %R minor\n"
+FMT="${FMT}| Swaps: %W\n"
+FMT="${FMT}\\\==================================================="
+
+/usr/bin/time -f "$FMT" "$@"
+
