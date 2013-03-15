@@ -1,0 +1,90 @@
+#!/bin/bash
+
+
+SKIP_IPV4=false
+SKIP_IPV6=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --skip4) SKIP_IPV4=true
+            ;;
+        --skip6) SKIP_IPV6=true
+            ;;
+    esac
+    shift
+done
+
+
+EU_IPV6=""
+EU_IPV6="$EU_IPV6 adams.freenode.net"
+EU_IPV6="$EU_IPV6 calvino.freenode.net"
+EU_IPV6="$EU_IPV6 cameron.freenode.net"
+EU_IPV6="$EU_IPV6 gibson.freenode.net"
+EU_IPV6="$EU_IPV6 hobana.freenode.net"
+EU_IPV6="$EU_IPV6 holmes.freenode.net"
+EU_IPV6="$EU_IPV6 leguin.freenode.net"
+EU_IPV6="$EU_IPV6 lindbohm.freenode.net"
+EU_IPV6="$EU_IPV6 rajaniemi.freenode.net"
+
+EU_IPV4=""
+EU_IPV4="$EU_IPV4 barjavel.freenode.net"
+EU_IPV4="$EU_IPV4 hitchcock.freenode.net"
+EU_IPV4="$EU_IPV4 kornbluth.freenode.net"
+EU_IPV4="$EU_IPV4 pratchett.freenode.net"
+EU_IPV4="$EU_IPV4 sendak.freenode.net"
+EU_IPV4="$EU_IPV4 wolfe.freenode.net"
+
+BEST_RTT="9999"
+BEST_SRV="-none-"
+
+lower_than() {
+    [[ $(echo "$1 < $2" | bc) == "1" ]] && return 0
+    return 1
+}
+check_srv() {
+    local SRV="$1"
+    local IPV6=""
+    [[ "$2" == "ipv6" ]] && IPV6="6"
+
+    echo -e -n "\rPinging $SRV ..."
+    local RES=$(ping$IPV6 -n -c4 "$SRV"|grep "rtt \|%")
+    #local RES="neco 0% nic
+    #uvidime 12/13.3/neco"
+
+    echo -e -n "\rTracing $SRV ..."
+    local HOPS=$(traceroute$IPV6 -n "$SRV"|tail -n+2|wc -l)
+    #local HOPS="10"
+
+    echo -e -n "\rCalculating $SRV ..."
+    local PKTLOSS=$(echo "$RES"|head -n1|sed "s/.* \([0-9]\+%\) .*/\1/")
+    if [[ $(echo "$RES"|wc -l) -lt 2 ]]; then
+        local AVGRTT="9999"
+    else
+        local AVGRTT=$(echo "$RES"|tail -n1|sed "s/.* [0-9\.]\+\/\([0-9\.]\+\)\/.*/\1/")
+    fi
+
+    echo -e -n "\rComparing $SRV ..."
+    if [[ "$PKTLOSS" == "0%" ]] && lower_than "$AVGRTT" "$BEST_RTT"; then
+        BEST_RTT="$AVGRTT"
+        BEST_SRV="$SRV"
+        [[ ! -z "$IPV6" ]] && BEST_SRV="$BEST_SRV (via IPv6)"
+    fi
+
+    echo -e "\r${AVGRTT} / ${PKTLOSS} loss / ${HOPS} hops => ${SRV}"
+}
+
+if ! $SKIP_IPV4; then
+    echo "== IPv4 servers =="
+    for SRV in $EU_IPV4; do check_srv "$SRV"; done
+
+    echo "== IPv6 servers via IPv4 =="
+    for SRV in $EU_IPV6; do check_srv "$SRV"; done
+fi
+if ! $SKIP_IPV6; then
+    echo "== IPv6 servers via IPv6 =="
+    for SRV in $EU_IPV6; do check_srv "$SRV" "ipv6"; done
+fi
+
+echo "== Best server is: =="
+echo "$BEST_SRV with $BEST_RTT avg rtt"
+
