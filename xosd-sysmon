@@ -69,6 +69,11 @@ do
     MEM_FREE=$(free -m|grep Mem|awk '{print $4 + $7}')
     SWAP_USED=$(free -m|grep Swap|awk '{print $3}')
 
+    BATTERY=$(battery |sed "s/.* \([0-9.]\+\)\%.*/+ \1/")
+    BATTERY=$(echo 0 $BATTERY|bc)
+    [[ $? != 0 ]] && BATTERY="" || BATTERY=" | $BATTERY%"
+
+
     NOWPLAYING=""
     if $HAS_NOWPLAY
     then
@@ -76,7 +81,7 @@ do
     fi
 
     #DATE=$(date)
-    MSG="$NOWPLAYING | CPU $CPU_USAGE% $CPU_TEMP | MEM ${MEM_FREE} free ${SWAP_USED} swapped"
+    MSG="$NOWPLAYING | CPU $CPU_USAGE% $CPU_TEMP | MEM ${MEM_FREE} free ${SWAP_USED} swapped${BATTERY}"
 
     #echo $MSG | osd_cat -d 1 $OSD_COLOR $OSD_POS -f $OSD_FONT
     #echo "next round?"
