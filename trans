@@ -4,14 +4,15 @@
 
 SOUBOR=`mktemp -p /tmp/`
 FIRST=$1
-WORD=$2
+shift
+WORD="$*"
 VERBOSE=false
 
 PROG=`basename $0`
 if [ "$PROG" != "trans" ];
 then
+	WORD="$FIRST $WORD"
 	FIRST=$PROG
-	WORD=$1
     if [[ "$2" == "-v" || "$2" == "--verbose" ]]
     then
         VERBOSE=true
@@ -35,6 +36,7 @@ esac
 
 echo -ne "\rdownloading ..."
 
+WORD="${WORD/ /%20}"
 URL="http://slovnik.seznam.cz/"$TRANSLANG"/word/?q="$WORD
 
 links -no-connect -dump $URL > $SOUBOR
