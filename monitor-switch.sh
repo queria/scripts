@@ -20,13 +20,17 @@ if [[ -z "$CONFIG" ]]; then
     #echo "Autodetected monitor layout: $CONFIG"
 fi
 
+# always first switch back to default
+xrandr --output HDMI3 --off --output LVDS1 --auto --rotate normal --reflect normal --primary
+
 case $CONFIG in
     work)
-        xrandr --output LVDS1 --auto --right-of HDMI3 --output HDMI3 --auto --primary
+        xrandr --output HDMI3 --auto --above LVDS1 --output LVDS1 --auto --primary
         ;;
     default)
         # use just display of nb
-        xrandr --output HDMI3 --off --output LVDS1 --auto --rotate normal --reflect normal --primary
+        #xrandr --output HDMI3 --off --output LVDS1 --auto --rotate normal --reflect normal --primary
+        # do nothing as we should be in the default now
         ;;
     -h|--help|help|*)
         echo "Usage:"
