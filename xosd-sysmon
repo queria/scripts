@@ -1,91 +1,136 @@
-#!/bin/bash
+#!/usr/bin/env python
+# vim: set sw=4 ts=4 et fileencoding=utf-8:
 
-OSD_POS="-p top -A center -i 20"
-OSD_FONT="-misc-fixed-medium-r-*-*-*-100-*-*-*-*-*-*"
-OSD_COLOR="-c yellow -O 1 -u black"
-CPU_SENSOR="temp1" #Core
-
-for XSPID in $(ps -U $UID|grep xosd-sysmon|grep -v grep|awk '{ print $1 }'); do
-    # ensure only one instance per user
-    [[ "$XSPID" == "$$" ]] && continue
-    kill $XSPID &> /dev/null;
-done
-
-if [ "$1" = "test" ];
-then
-    CMD=cat
-    SLEEP=1
-else
-    CMD="osd_cat -l 1 $OSD_COLOR $OSD_POS -f $OSD_FONT"
-    SLEEP=2
-fi
-
-if which mpstat &> /dev/null;
-then
-    HAS_MPSTAT=true
-else
-    HAS_MPSTAT=false
-    echo "mpstat is missing, cpu usage will be probably out of actual values"
-    echo "please install sysstat package (fedora/debian...)"
-    echo ""
-fi
-
-if which nowplaying &> /dev/null;
-then
-    HAS_NOWPLAY=true
-else
-    HAS_NOWPLAY=false
-    echo "nowplaying script is missing, no current song info will be displayed"
-    echo "you can grab it from the same repo as this (xosd-sysmon)"
-    echo ""
-fi
-
-if which sensors &> /dev/null;
-then
-    HAS_SENSORS=true
-else
-    HAS_SENSORS=false
-    echo "sensors command is missing, please install (and set-up) lm-sensors"
-    echo "to be able to watch cpu temperature"
-    echo ""
-fi
+import datetime
+import pyosd
+import subprocess as proc
+import time
 
 
-while true;
-do
-    if $HAS_MPSTAT
-    then
-        CPU_IDLE=$(mpstat -u 1 1|grep Average|sed 's/.*\W\([0-9]*\)\.\([0-9]\+\)$/\1/')
-    else
-        CPU_IDLE=$(top -n 1|grep Cpu|awk '{ print $5 }'|sed "s/\(.*\)\..*/\1/")
-    fi
-    CPU_USAGE=$(( 100 - $CPU_IDLE ))
-    CPU_TEMP=""
-    if $HAS_SENSORS
-    then
-        CPU_TEMP=$(sensors|grep "${CPU_SENSOR:-Core}"|sed "s/.* \(+[0-9\.]\+.\{2\}\) .*/\\1/")
-    fi
+class SysMon:
+    def __init__(self):
+        self.nowplay_cmd = self.find_nowplay()
+        self.has_mpstat = self.find_mpstat()
+        self.last_battery = 0
 
-    MEM_FREE=$(free -m|grep Mem|awk '{print $4 + $7}')
-    SWAP_USED=$(free -m|grep Swap|awk '{print $3}')
+        pass
 
-    BATTERY=$(battery |sed "s/.* \([0-9.]\+\)\%.*/+ \1/")
-    BATTERY=$(echo 0 $BATTERY|bc)
-    [[ $? != 0 ]] && BATTERY="" || BATTERY=" | $BATTERY%"
+    def keys(self):
+        return ('nowplaying', 'cpu_usage', 'cpu_temp',
+                'mem_free', 'mem_swapped',
+                'battery')
+
+    def __getitem__(self, attr):
+        return getattr(self, attr)()
+    #'item-%s' % attr
+
+    def find_nowplay(self):
+        return proc.check_output(('/usr/bin/which', 'nowplaying'))
+
+    def nowplaying(self):
+        if not self.nowplay_cmd:
+            return ''
+        playing = proc.check_output(self.nowplay_cmd, shell=True)
+        playing = playing.strip()
+        return playing
+
+    def find_mpstat(self):
+        return proc.check_output(('/usr/bin/which', 'mpstat'))
+
+    def cpu_usage(self):
+        if self.has_mpstat:
+            idle = proc.check_output(
+                ("mpstat -u 1 1|grep Average"
+                 "|sed 's/.*\W\([0-9]*\)\.\([0-9]\+\)$/\\1/'"),
+                shell=True)
+        else:
+            idle = proc.check_output(
+                ("top -n 1|grep Cpu|awk '{ print $5 }'"
+                 "|sed \"s/\(.*\)\..*/\\1/\""),
+                shell=True)
+        return 100 - int(idle.strip())
+
+    def cpu_temp(self):
+        temp = proc.check_output(
+            ('sensors|grep "${CPU_SENSOR:-Core}"'
+             '|head -n1|sed "s/.* +\([0-9\.]\+\).\{2\} .*/\\1/"'),
+            shell=True)
+        return int(float(temp.strip()))
+
+    def mem_free(self):
+        free = proc.check_output(
+            ("free -m|grep Mem"
+             "|awk '{print $4 + $7}'"),
+            shell=True)
+        return int(free.strip())
+
+    def mem_swapped(self):
+        swap = proc.check_output(
+            ("free -m|grep Swap|awk '{print $3}'"),
+            shell=True)
+        return (swap.strip())
+
+    def battery(self):
+        batteries = proc.check_output(
+            ('battery |sed "s/.* \([0-9\.]\+\)\%.*/\\1/"'),
+            shell=True)
+
+        if not batteries.strip():
+            return ''
+
+        battery = sum([float(bat_num.strip())
+                       for bat_num
+                       in batteries.split('\n')
+                       if bat_num.strip()])
+        if not self.last_battery or battery == self.last_battery:
+            mark = ''
+        elif self.last_battery > battery:
+            mark = '--'
+        else:
+            mark = '++'
+        self.last_battery = battery
+        return ' | %s%%%s' % (battery, mark)
 
 
-    NOWPLAYING=""
-    if $HAS_NOWPLAY
-    then
-        NOWPLAYING=$(nowplaying)
-    fi
+class XOSD_Printer:
+    def __init__(self, status_line, data_provider, refresh_time=2):
+        self.osd = pyosd.osd('fixed', 'yellow')
+        self.osd.set_timeout(refresh_time)
+        self.osd.set_align(pyosd.ALIGN_CENTER)
 
-    #DATE=$(date)
-    MSG="$NOWPLAYING | CPU $CPU_USAGE% $CPU_TEMP | MEM ${MEM_FREE} free ${SWAP_USED} swapped${BATTERY}"
+        self.line = status_line
+        self.source = data_provider
+        self.time = refresh_time
 
-    #echo $MSG | osd_cat -d 1 $OSD_COLOR $OSD_POS -f $OSD_FONT
-    #echo "next round?"
-    echo "$MSG"
-    sleep $SLEEP
-done | $CMD
+        try:
+            self.run()
+        except KeyboardInterrupt:
+            print('-EXIT-')
 
+    def run(self):
+        while True:
+            time_used = self.print_state()
+            sleep_sec = max(0.1, self.time - time_used.total_seconds())
+            time.sleep(sleep_sec)
+
+    def print_state(self):
+        start = datetime.datetime.now()
+        line = self.line.format(**dict(self.source))
+
+        self.osd.wait_until_no_display()
+        self.osd.display(line)
+        return datetime.datetime.now() - start
+
+
+def main(debug=False):
+    status_line = ('{nowplaying} |'
+                   ' CPU {cpu_usage}% {cpu_temp}*C |'
+                   ' MEM {mem_free} free {mem_swapped} swapped'
+                   '{battery}')
+    mon = SysMon()
+    XOSD_Printer(status_line,
+                 mon,
+                 refresh_time=2)
+
+if __name__ == '__main__':
+    main()
