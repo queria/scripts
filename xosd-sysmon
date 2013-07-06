@@ -97,6 +97,8 @@ class XOSD_Printer:
         self.osd = pyosd.osd('fixed', 'yellow')
         self.osd.set_timeout(refresh_time)
         self.osd.set_align(pyosd.ALIGN_CENTER)
+        self.osd.set_outline_colour('black')
+        self.osd.set_outline_offset(1)
 
         self.line = status_line
         self.source = data_provider
