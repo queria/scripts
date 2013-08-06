@@ -2,6 +2,11 @@
 
 [[ -f /usr/share/X11/xkb/symbols/vok ]] && setxkbmap vok
 which xosd-sysmon &> /dev/null && xosd-sysmon &
+which parcellite &> /dev/null && parcellite &> /dev/null &
+xset dpms 0 0 0
+if which xautolock &> /dev/null && which i3lock &> /dev/null; then
+    xautolock -time 3 -locker 'i3lock -p default -c ff2222 -d' &>/dev/null & 
+fi
 
 TPNAME=$(xinput list|grep 'TrackPoint'|sed "s/^\W*\(\w.*\w\)\W*id=.*$/\1/")
 if [[ ! -z "$TPNAME" ]]; then
