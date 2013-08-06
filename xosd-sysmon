@@ -119,7 +119,6 @@ class XOSD_Printer:
         start = datetime.datetime.now()
         line = self.line.format(**dict(self.source))
 
-        self.osd.wait_until_no_display()
         self.osd.display(line)
         return datetime.datetime.now() - start
 
