@@ -1,0 +1,24 @@
+#!/bin/bash
+if [[ -z "$DISPLAY" ]]; then
+    if ! which vlock > /dev/null; then
+        echo "Unable to find vlock!" >&2
+        exit 1
+    fi
+    clear
+    echo " Now You will be upgraded, please stand-by ..."
+    echo ""
+    echo " Error: You are incompatible with Cyberman upgrade."
+    echo " DELETE! DELETE! DELETE!"
+    echo ""
+    vlock --all
+else
+    if ! which i3lock > /dev/null; then
+        echo "Unable to find i3lock!" >&2
+        exit 1
+    fi
+    i3lock \
+        -p default \
+        \ #-c ff2222 \
+        -i /all/pictures/wall/danger/dark_cyber___by_steelgohst_by_steelgohst-d5hnyrs.png \
+        -d #dpms
+fi

@@ -1,0 +1,11 @@
+#!/bin/bash
+if ! which xautolock > /dev/null; then
+    echo "Unable to find xautolock!" >&2
+    exit 1
+fi
+
+if [[ "$1" == "no" ]]; then
+    pkill xautolock
+else
+    xautolock -time 3 -locker qslock &>/dev/null &
+fi
