@@ -1,0 +1,4 @@
+#!/bin/bash
+
+wget -e robots=off -nH --mirror --level=6 --no-parent -A .gz "$1"
+
