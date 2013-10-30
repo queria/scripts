@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if [[ "$1" -lt 1 || "$1" -gt 15 ]]; then
+    echo "Please specify number between 1..15."
+    exit 1
+fi
+
+su -c "echo $1 > /sys/class/backlight/acpi_video0/brightness"
