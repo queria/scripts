@@ -1,0 +1,32 @@
+#!/bin/bash
+
+INOTIFY=$(which inotifywait)
+if [ -z "$INOTIFY" -o ! -x "$INOTIFY" ]; then
+  echo "This script requires inotifywait:"
+  echo "- please install package inotify-tools (or equiv for you distro)."
+  exit 2
+fi
+
+DIR="$1"
+shift
+
+if [ ! -d "$DIR" ]; then
+  echo "first argument has to be path to monitored file"
+  exit 1
+fi
+
+NOTIFYOPTS="-r -e modify"
+
+echo "Please send a SIGINT to finish (CTRL+C)"
+while true; do
+    echo Will run on change: "$@"
+    if inotifywait $NOTIFYOPTS $DIR > /dev/null 2>&1; then
+        echo change at `date`
+        echo ""
+        echo "-------------[  running on change  ]-----------"
+        eval "$@"
+        echo "-----------------------------------------------"
+        echo Command Finished at `date`
+        echo "Use SIGINT to finish (CTRL+C)"
+  fi
+done
