@@ -1,16 +1,27 @@
 #!/usr/bin/env python
-"""Clean expired tokens from keystone database slowly.
+"""Clean expired tokens from keystone database (very) slowly.
 
 When token table grows so much, keystone-manage token_flush <..>
 maybe not be able to clean it up (too long for locking + reindexing).
 
-Probably best way could be:
+Probably best way is, when small downtime is acceptable,
+to export valid tokens, truncate, import back, while keystone is stopped::
+
+    $ cat clean-tokens.sh
+    #!/bin/bash
+    set -x
     service openstack-keystone stop;
 
-    // mysql
-    alter table token disable keys;
-    delete from token where expires < NOW();
-    alter table token enable keys;
+    time mysql -ukeystone_admin -pYourPassHERE -hYourHostHERE <<EOF
+    use keystone;
+    drop table if exists maint_token_valid;
+    create table maint_token_valid
+        as (select * from token where expires >= NOW());
+    select count(*) from maint_token_valid;
+    truncate table token;
+    insert into token select * from maint_token_valid;
+    drop table maint_token_valid;
+    EOF
 
     service openstack-keystone start;
 
