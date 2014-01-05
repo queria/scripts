@@ -9,6 +9,70 @@ import requests
 import sys
 import yaml
 
+
+def print_help():
+    print('Usage: mu-online'
+          ' [--help]'
+          ' [--fresh]'
+          ' [--sort <key>]'
+          ' [--reset <charname>]')
+    print('')
+    print('')
+    print(' --help:    show this help')
+    print(' --fresh:   ignore local cache and force refresh from server')
+    print(' --sort:    sort list of players based on specified key:')
+    print('            [name, level, reset, class, guild, map, conn_time]')
+    print(' --reset:   when specified, instead of listing online players,')
+    print('            your character <charname> will be reset,')
+    print('            and stat points distributed, based on config file.')
+    print('')
+    print('All options may be specified even without dashes.')
+    print('')
+    print('Examples:')
+    print(' mu-online  ... list online players')
+    print(' mu-online fresh sort map  ... list online ordered by map name,')
+    print('                               local cache ignored')
+    print(' mu-online reset liu  ... reset char liu (see config file below)')
+    print('')
+    print('')
+    print('If you don\'t have ~/.muonline.yaml config yet,'
+          ' you have to create one!')
+    print('')
+    print('''Example ~/.muonline.yaml content (for DreamMu.cz):
+---
+dream:
+    url: http://dreammu.cz/index.php
+    start: <table.*class="themain".*
+    end: </table>
+    char:
+        - <tr>
+        - \W*<td{attrs}>{in_tag}</td>
+        - \W*<td{attrs}>(?P<name>{in_tag})</td>
+        - \W*<td{attrs}>(?P<level>{in_tag})</td>
+        - \W*<td{attrs}>(?P<reset>{in_tag})</td>
+        - \W*<td{attrs}>(?P<class>{in_tag})</td>
+        - \W*<td{attrs}>(?P<guild>{in_tag})</td>
+        - \W*<td{attrs}>(?P<map>{in_tag})</td>
+        - \W*<td{attrs}>(?P<conn_time>{in_tag})</td>
+        - \W*<td{attrs}><img {attrs}></td>
+        - \W*</tr>
+    err_msg: <div class="msg_error"{attrs}>(?P<msg>{in_tag})</div>
+    info: [LiuKan, Barr]
+    warn: [Explosion, Anathema]
+    acc: <---YOUR-LOGIN--->
+    pass: <---YOUR-PASSWORD--->
+    res_stats:
+        liu:
+            name: LiuKan
+            rid: <---optional, find this number in reset character url--->
+            str: 30000
+            agi: 30000
+            vit: 20000
+            eng: 30000''')
+    print('')
+    sys.exit(1)
+
+
 REG_HELPERS = {
     'attrs': "[^>]*",
     'in_tag': "[^<]*"
@@ -153,11 +217,9 @@ def print_chars(characters, info=None, warn=None):
     for ch in characters:
         ch.update(props)
         if ch['name'] in info:
-            #ch['mark'] = '----'
             ch['mark'] = COLOR['BLUE']
             ch['mark_end'] = COLOR['BLACK']
         if ch['name'] in warn:
-            #ch['mark'] = '****'
             ch['mark'] = COLOR['YELLOW']
             ch['mark_end'] = COLOR['BLACK']
         if 'mark_end' not in ch:
@@ -287,21 +349,11 @@ def add_stats(session, cfg, char):
     data['levelup_id'] = str(found.group('id'))
     data['token'] = str(found.group('token'))
 
-    #print('Sending request:')
-    #print(yaml.dump(data))
     reply = session.post(cfg['url'] + sub_url, data=data)
     check_err(reply, cfg)
 
     print('- stats added')
 
-    # <td align="left" class="iR_name" width="100">
-    # LiuKan
-    # <input type="hidden" name="levelup_id" value="609">
-    # <input type="hidden" name="levelup_add">#
-    # <input type="hidden" name="token" value="1388712210">
-    # </td>
-
-    # <input type="submit" class="i_button" value="Pridaj body">
 
 
 def char_info(session, cfg, char):
@@ -335,40 +387,13 @@ def reset_char(cfg, args):
     char_info(login_sess, cfg, char)
 
 
-def print_help():
-    print('Usage: mu-online-list'
-          ' [--help]'
-          ' [--fresh]'
-          ' [--sort <key>]'
-          ' [--reset <charname>]')
-    print('')
-    print('All options may be specified even without dashes like:')
-    print(' mu-online-list reset Rambo')
-    print(' mu-online-list fresh sort map')
-    print('')
-    print('')
-    print(' --help:    show this help')
-    print(' --fresh:   ignore local cache and force refresh from server')
-    print(' --sort:    sort list of players based on specified key:')
-    print('            [name, level, reset, class, guild, map, conn_time]')
-    print(' --reset:   when specified, instead of listing online players,')
-    print('            your character <charname> will be reset,')
-    print('            and stat points distributed, based on config file.')
-    print('')
-    print('')
-    print('If you don\'t have ~/.muonline.yaml config yet,'
-          ' you have to create one!')
-    print('')
-    sys.exit(1)
-
-
 def load_cfg(path='~/.muonline.yaml'):
     config = {}
     with open(os.path.expanduser(path)) as cfg_file:
         config = yaml.load(cfg_file.read())
 
     for srv in config.values():
-        # compile regexps
+        # compile regexps read from config
         for field in ['start', 'end', 'char', 'err_msg']:
             if isinstance(srv[field], list):
                 srv[field] = ''.join(srv[field])
@@ -396,14 +421,14 @@ def parse_args(argv, with_val):
 
 
 if __name__ == '__main__':
-    cfg = load_cfg()['dream']
 
     args = parse_args(sys.argv, ['sort', 'reset'])
     args.setdefault('fresh', False)
     args.setdefault('sort', 'name')
-
     if args.get('help', False):
         print_help()
+
+    cfg = load_cfg()['dream']
 
     print("{0:^60}".format(str(datetime.datetime.now())))
     if 'reset' in args:
