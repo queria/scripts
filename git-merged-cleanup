@@ -32,13 +32,14 @@ THEBRANCH="${1:-master}"
 
 echo "Using branch $THEBRANCH as the one with merged changes..."
 
-BRANCHES="$(git branch|strip_brmark|grep -vE "^${THEBRANCH}$")"
-MERGED="$(git branch --merged | grep -vE "^${THEBRANCH}$"|strip_brmark)"
-MERGED_CHANGES="$(git log "$THEBRANCH"|grep_changeid)"
+MERGED="$(git branch --merged | strip_brmark | grep -vE "^${THEBRANCH}$")"
+MERGED_CHANGES="$(git log "$THEBRANCH" | grep_changeid)"
 
 if [[ ! -z "$MERGED" ]]; then
     git branch -d $MERGED
 fi
+
+BRANCHES="$(git branch | strip_brmark | grep -vE "^${THEBRANCH}$")"
 
 MERGED=""
 for BRANCH in $BRANCHES; do
