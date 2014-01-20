@@ -1,0 +1,65 @@
+#!/bin/bash
+
+if [[ "$1" == "--help" ]]; then
+    echo "Find branches which were already merged in."
+    echo ""
+    echo "$0 [change_with_merges]"
+    echo ""
+    echo "Those recognized as merged even by git branch --merged"
+    echo " will be deleted (-d)."
+    echo "Those detected as merged based on Change-Id will be listed"
+    echo " and command to remove them (with -D) will be printed out"
+    echo " for you to just copy-paste+run."
+fi
+
+if ! git log -1 &>/dev/null; then
+    echo "You are not in the git repository!"
+fi
+
+grep_changeid() {
+    sed -nr 's/ *Change-Id: ([A-Za-z0-9])/\1/p'
+}
+strip_brmark() {
+    sed -r 's/[* ] //'
+}
+contains() {
+    local e
+    for e in "${@:2}"; do [[ "$e" == "$1" ]] && return 0; done;
+    return 1;
+}
+
+THEBRANCH="${1:-master}"
+
+echo "Using branch $THEBRANCH as the one with merged changes..."
+
+BRANCHES="$(git branch|strip_brmark|grep -vE "^${THEBRANCH}$")"
+MERGED="$(git branch --merged | grep -vE "^${THEBRANCH}$"|strip_brmark)"
+MERGED_CHANGES="$(git log "$THEBRANCH"|grep_changeid)"
+
+if [[ ! -z "$MERGED" ]]; then
+    git branch -d $MERGED
+fi
+
+MERGED=""
+for BRANCH in $BRANCHES; do
+    CHID="$(git log -1 "$BRANCH" | grep_changeid)"
+    if contains $CHID $MERGED_CHANGES; then
+        MERGED="${MERGED} ${BRANCH}"
+    fi
+done
+
+if [[ -z "$MERGED" ]]; then
+    echo "No already merged branches found"
+    exit 0
+fi
+
+echo "==Already merged branches based on change-id:=="
+for BRANCH in $MERGED; do
+    echo "--[ $BRANCH ]--";
+    git log -1 $BRANCH
+done
+echo ""
+echo ""
+echo "if those seems ok you can execute:"
+echo " git branch -D $MERGED"
+
