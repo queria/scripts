@@ -10,6 +10,10 @@ if [[ "$1" == "--help" ]]; then
     echo "Those detected as merged based on Change-Id will be listed"
     echo " and command to remove them (with -D) will be printed out"
     echo " for you to just copy-paste+run."
+    echo ""
+    echo "You can put name of branches you want to ALWAYS keep"
+    echo "in the ~/.git-merged-cleanup.conf (one branch per line)"
+    exit 0
 fi
 
 if ! git log -1 &>/dev/null; then
@@ -29,20 +33,38 @@ contains() {
 }
 
 THEBRANCH="${1:-master}"
+KEEP_BRANCHES=""
+if [[ -f ~/.git-merged-cleanup.conf ]]; then
+    KEEP_BRANCHES="$(cat ~/.git-merged-cleanup.conf)"
+fi
 
 echo "Using branch $THEBRANCH as the one with merged changes..."
+if [[ ! -z "$KEEP_BRANCHES" ]]; then
+    echo -n "Should keep the branches: "
+    echo $KEEP_BRANCHES
+fi
 
 MERGED="$(git branch --merged | strip_brmark | grep -vE "^${THEBRANCH}$")"
 MERGED_CHANGES="$(git log "$THEBRANCH" | grep_changeid)"
 
 if [[ ! -z "$MERGED" ]]; then
-    git branch -d $MERGED
+    for BRANCH in $MERGED; do
+        if contains "$BRANCH" $KEEP_BRANCHES; then
+            echo "Keeping branch $BRANCH"
+        else
+            git branch -d "$MERGED" 
+        fi
+    done
 fi
 
 BRANCHES="$(git branch | strip_brmark | grep -vE "^${THEBRANCH}$")"
 
 MERGED=""
 for BRANCH in $BRANCHES; do
+    if contains "$BRANCH" $KEEP_BRANCHES; then
+        echo "Keeping branch $BRANCH"
+        continue
+    fi
     CHID="$(git log -1 "$BRANCH" | grep_changeid)"
     if contains $CHID $MERGED_CHANGES; then
         MERGED="${MERGED} ${BRANCH}"
