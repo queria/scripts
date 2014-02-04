@@ -52,7 +52,7 @@ if [[ ! -z "$MERGED" ]]; then
         if contains "$BRANCH" $KEEP_BRANCHES; then
             echo "Keeping branch $BRANCH"
         else
-            git branch -d "$MERGED" 
+            git branch -d "$BRANCH"
         fi
     done
 fi
