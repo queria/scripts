@@ -17,20 +17,27 @@ case "$1" in
 esac
 
 
-if [[ "$GOV" == "NONE" ]]; then
-    cat <<HELP
-Specify required cpu performance:
-$0 [max|optim|min]
-HELP
-exit 0
-fi
-
 CPUS=$(ls -1 -d /sys/devices/system/cpu/cpu*/cpufreq)
-
 if [[ -z "$CPUS" ]]; then
     echo "No CPUs with cpufreq found."
     exit $ERR_NOCPU
 fi
+
+
+if [[ "$GOV" == "NONE" ]]; then
+    echo "Specify required cpu performance:"
+    echo "$0 [max|optim|min]"
+    echo ""
+
+    echo "Current values:"
+    for CPU in $CPUS; do
+        GOV_FILE="${CPU}/scaling_governor"
+        echo "$CPU: $(cat "$GOV_FILE")"
+    done
+    exit 0
+fi
+
+
 
 for CPU in $CPUS; do
     if ! egrep -q "(^|\W)${GOV}(\W|$)" "${CPU}/scaling_available_governors";
