@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [[ -z "$1" || ! -f "$1" ]]; then
+    echo "Specify zip file with subtitles"
+    exit 1
+fi
+
+set -o errexit
+
+SUBFILE=$(unzip -l "$1" | grep '\.srt' |sed -r 's/(\W+[0-9:-]+){3}\W+//')
+
+echo $SUBFILE
+unzip -d /tmp/ "$1"
+mv "/tmp/${SUBFILE}" .
+
+
