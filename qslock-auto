@@ -4,8 +4,36 @@ if ! which xautolock > /dev/null; then
     exit 1
 fi
 
-if [[ "$1" == "no" ]]; then
-    pkill xautolock
-else
-    xautolock -time 3 -locker qslock &>/dev/null &
+if [[ "$1" == "--help" ]]; then
+    echo "$0 [no]"
+    echo " to do auto-locking or don't."
+    exit 0
 fi
+
+check_lock() {
+    pgrep xautolock &> /dev/null
+}
+
+start_lock() {
+    xautolock -time 3 -locker qslock &>/dev/null &
+}
+
+kill_lock() {
+    echo "[ AutoLock disabled]"
+    pgrep xautolock
+    pkill xautolock
+    pgrep xautolock
+}
+
+case "$1" in
+    no|off|--off) kill_lock ;;
+    toggle)
+        if check_lock; then
+            kill_lock;
+        else
+            echo "[ AutoLock enabled ]"
+            start_lock;
+        fi
+        ;;
+    *) check_lock && start_lock ;;
+esac
