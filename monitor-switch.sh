@@ -20,12 +20,29 @@ if [[ -z "$CONFIG" ]]; then
     #echo "Autodetected monitor layout: $CONFIG"
 fi
 
-# always first switch back to default
-xrandr --output HDMI3 --off --output LVDS1 --auto --rotate normal --reflect normal --primary
+# first everything off to clean possible manual changes,
+
+# also workarounds issue with razor-qt WM, which may calculate positions
+# incorrectly after display is switched
+# ~ https://github.com/Razor-qt/razor-qt/issues/612
+
+for DISP in $(xrandr |sed -n '/connect/s/ \(dis\)\?connected.*$//p'); do
+    xrandr --output $DISP --off
+done
+
+# always switch back to default
+xrandr --output LVDS1 --auto --rotate normal --reflect normal --primary
 
 case $CONFIG in
     work)
         xrandr --output HDMI3 --auto --above LVDS1 --output LVDS1 --auto --primary
+        ;;
+    present)
+        xrandr --output VGA1 --auto --leftof LVDS1 --output LVDS1 --auto --primary
+        ;;
+    present-mirror)
+        xrandr --output VGA1 --same-as LVDS1
+    #    xrandr --output VGA1 --off --output LVDS1 --auto --rotate normal --reflect normal --primary
         ;;
     default)
         # use just display of nb
