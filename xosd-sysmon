@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 # vim: set sw=4 ts=4 et fileencoding=utf-8:
 
 import datetime
@@ -16,13 +16,23 @@ class SysMon:
         pass
 
     def keys(self):
-        return ('nowplaying', 'cpu_usage', 'cpu_temp',
+        return ('datetime',  # 'updates',
+                'nowplaying', 'cpu_usage', 'cpu_temp',
                 'mem_free', 'mem_swapped',
                 'battery')
 
     def __getitem__(self, attr):
         return getattr(self, attr)()
     #'item-%s' % attr
+
+    def datetime(self):
+        return datetime.datetime.now().strftime('%a %d/%H:%M:%S')
+
+    #def updates(self):
+    #    print('Updates ... ?')
+    #    x = proc.check_output('su -c "dnf check-update"|wc -l', shell=True)
+    #    print('done')
+    #    return x.strip()
 
     def find_nowplay(self):
         return proc.check_output(('/usr/bin/which', 'nowplaying'))
@@ -125,13 +135,15 @@ class XOSD_Printer:
 
 def main(debug=False):
     status_line = ('{nowplaying} |'
-                   ' CPU {cpu_usage}% {cpu_temp}*C |'
-                   ' MEM {mem_free} free {mem_swapped} swapped'
+                   ' {datetime} |'
+                   # ' {updates} |'
+                   ' {cpu_usage}% {cpu_temp}*C |'
+                   ' {mem_free} free {mem_swapped} swap'
                    '{battery}')
     mon = SysMon()
     XOSD_Printer(status_line,
                  mon,
-                 refresh_time=2)
+                 refresh_time=4)
 
 if __name__ == '__main__':
     main()
