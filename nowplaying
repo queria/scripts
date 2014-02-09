@@ -2,26 +2,23 @@
 
 N=/dev/null
 
-if ps -ef 2>&1 | grep qmmp 2>&1 | grep -v grep &> $N 
-then
+checkproc() {
+    # TODO: rewrite this too
+    ps -ef 2>&1 | grep $1 2>&1 | grep -v grep
+}
+
+if checkproc qmmp &> $N; then
 	echo "qmmp - nepodporovano";
-else
-	if ps -ef 2>&1 | grep amarok 2>&1 | grep -v grep &> $N 
-	then
-		if dcop amarok player isPlaying &> $N;
-		then
+elif checkproc amarok &> $N; then
+    if dcop amarok player isPlaying &> $N; then
 			dcop amarok player nowPlaying
-		fi
-	else
-		if ps -ef 2>&1 | grep mpd 2>&1 | grep -v grep &> $N;
-		then
-			#echo mpd
-			mpc current
-		else
-			echo
-			# echo nothing playing
-		fi
-	fi
+    fi
+elif checkproc mpd &> $N; then
+    mpc current
+else
+    FILE=$(find ~/ -maxdepth 1 -type f -name .nowplaying -mmin -60 -print)
+    [[ -f "$FILE" ]] && cat "$FILE" || echo
+    # empty echo - nothing playing but we provide line
 fi
 
 
