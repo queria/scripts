@@ -54,7 +54,7 @@ list_merged() {
 }
 
 test_branch() {
-    if git branch | grep -q "$1" && git log -1 "$1" &>/dev/null; then
+    if git branch | grep -q "$1" && git log -1 "$1" -- &>/dev/null; then
         return
     fi
     echo "ERROR: Branch $1 not found!"
