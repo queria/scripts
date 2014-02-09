@@ -10,8 +10,8 @@ fi
 DIR="$1"
 shift
 
-if [ ! -d "$DIR" ]; then
-  echo "first argument has to be path to monitored file"
+if [ -z "$DIR" ]; then
+  echo "first argument has to be path to monitored file or directory"
   exit 1
 fi
 
