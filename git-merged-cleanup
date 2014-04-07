@@ -44,7 +44,7 @@ if [[ ! -z "$KEEP_BRANCHES" ]]; then
     echo $KEEP_BRANCHES
 fi
 
-MERGED="$(git branch --merged | strip_brmark | grep -vE "^${THEBRANCH}$")"
+MERGED="$(git branch --merged ${THEBRANCH} | strip_brmark | grep -vE "^${THEBRANCH}$")"
 MERGED_CHANGES="$(git log "$THEBRANCH" | grep_changeid)"
 
 if [[ ! -z "$MERGED" ]]; then

@@ -2,6 +2,7 @@
 
 
 ### Usage:
+###  git verify [-b [-|verify-branch]] [--all] [branchA, branchB, ...]
 ###
 ### You can use this to automate mass-branch-merging of
 ### multiple independant/separate branches to one superior,
@@ -41,16 +42,25 @@
 ### To change how the 'your-personal-always-merged-branch' is called,
 ### export GIT_VERIFY_ALWAYS_MERGE.
 ###
+### You can specify different name for the 'verify' branch,
+### using -b <name>, it has to be provided before the name of
+### branches for merging (including --all).
+###
+###  git verify -b test-this --all branch1 branch2
+###
+### Specify '-' to use currently active branch instead of 'verify'
+###  git verify -b - --all branch1
 
 
 
 set -o errexit
 
+VERIFY_BR="${GIT_VERIFY_VERIFY_BRANCH:-verify}"
 ALWAYS_MERGE="${GIT_VERIFY_ALWAYS_MERGE:-psedlak}"
 
 list_merged() {
-    git log verify --merges \
-        | sed -n "s/.*branch '\(.*\)' into verify.*/\1/p" | tac;
+    git log $VERIFY_BR --merges \
+        | sed -n "s/.*branch '\(.*\)' into ${VERIFY_BR}.*/\1/p" | tac;
 }
 
 test_branch() {
@@ -61,7 +71,23 @@ test_branch() {
     exit 128
 }
 
-if [[ -z "$1" || "$1" == "--help" ]]; then
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    sed -n 's/^###/ /p' $0
+    exit
+fi
+
+if [[ "$1" == "-b" ]]; then
+    shift
+    VERIFY_BR="$1"
+    if [[ "x${VERIFY_BR}" == "x-" ]]; then
+        # use currently active branch instead of the 'verify'
+        VERIFY_BR="$(git branch --no-color 2>/dev/null | sed -n "s/^\* \(.*\)\$/\1/p")"
+    fi
+    shift
+    echo "==/ $VERIFY_BR /=="
+fi
+
+if [[ -z "$1" ]]; then
     echo "==[ No branches specified ... listing last merges ]=="
     echo ""
     BRANCHES=$(list_merged)
@@ -98,8 +124,8 @@ else
     fi
 
     git checkout master
-    git branch -D verify
-    git checkout -b verify
+    git branch -D $VERIFY_BR
+    git checkout -b $VERIFY_BR
 
     set -e
 
@@ -116,7 +142,7 @@ else
 
     echo "==[ Pushing changes ]=="
     git push my $ALWAYS_MERGE:$ALWAYS_MERGE -f
-    git push my verify:verify -f
+    git push my ${VERIFY_BR}:${VERIFY_BR} -f
 
     echo "==[ DONE ]=="
 fi
