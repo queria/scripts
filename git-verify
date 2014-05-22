@@ -124,7 +124,7 @@ else
     fi
 
     git checkout master
-    git branch -D $VERIFY_BR
+    git branch -D $VERIFY_BR || :
     git checkout -b $VERIFY_BR
 
     set -e
