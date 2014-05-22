@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+import logging
+import re
+import subprocess
+import sys
+import tempfile
+
+
+log = logging.getLogger('bindiff')
+logging.basicConfig(level=logging.INFO, stream=sys.stderr)
+
+hex_pattern = '([0-9a-fA-F]+) +' * 16
+ascii_pattern = '(.)' * 16
+line_pattern = re.compile(
+    '^[0-9a-fA-F]+ +{hex}\|{ascii}\|'.format(
+        hex=hex_pattern, ascii=ascii_pattern))
+
+
+class NoHexdumpFile(Exception):
+    pass
+
+
+def format_lines(lines):
+    no_match = True
+    for line in lines:
+        match = line_pattern.match(line)
+        if not match:
+            log.debug('no match for: %s', line)
+        else:
+            no_match = False
+            half = len(match.groups()) / 2
+            for n in xrange(1, half + 1):
+                print(match.group(n)
+                      + ' ' + match.group(n + half))
+    if no_match:
+        raise NoHexdumpFile()
+
+
+def format_file(src_path):
+    with open(src_path) as src:
+        if not line_pattern.match(src.readline()):
+            raise NoHexdumpFile()
+        src.seek(0)
+        format_lines(iter(src))
+
+
+def hexdump_and_format_file(src_path):
+    with tempfile.NamedTemporaryFile() as tmp:
+        retc = subprocess.call(
+            ('hexdump', '-C', src_path),
+            stdout=tmp)
+        if retc != 0:
+            raise RuntimeError('Failed to get hexdump of file %s'
+                               % src_path)
+        tmp.seek(0)
+        format_lines(iter(tmp))
+
+if __name__ == '__main__':
+    src_path = sys.argv[1]
+    try:
+        format_file(src_path)
+    except NoHexdumpFile:
+        log.info('%s does not looks like hexdump file, hexdumping ...',
+                 src_path)
+        hexdump_and_format_file(src_path)
