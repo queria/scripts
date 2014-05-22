@@ -2,6 +2,7 @@
 # vim: set sw=4 ts=4 et fileencoding=utf-8:
 
 import datetime
+import os
 import pyosd
 import subprocess as proc
 import time
@@ -19,7 +20,7 @@ class SysMon:
         return ('datetime',  # 'updates',
                 'nowplaying', 'cpu_usage', 'cpu_temp',
                 'mem_free', 'mem_swapped',
-                'battery')
+                'battery', 'extra')
 
     def __getitem__(self, attr):
         return getattr(self, attr)()
@@ -101,6 +102,17 @@ class SysMon:
         self.last_battery = battery
         return ' | %s%%%s' % (battery, mark)
 
+    def extra(self):
+        extra = []
+        try:
+            with open(os.path.expanduser('~/osd-notes')) as notes:
+                extra.extend(notes.read().strip().split('\n'))
+        except IOError:
+            pass
+        if extra:
+            return ' | '.join(extra)
+        return ''
+
 
 class XOSD_Printer:
     def __init__(self, status_line, data_provider, refresh_time=2):
@@ -130,6 +142,7 @@ class XOSD_Printer:
         line = self.line.format(**dict(self.source))
 
         self.osd.display(line)
+        self.osd.display(self.source.extra(), line=1)
         return datetime.datetime.now() - start
 
 
