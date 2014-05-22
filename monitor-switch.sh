@@ -44,6 +44,9 @@ case $CONFIG in
         xrandr --output VGA1 --same-as LVDS1
     #    xrandr --output VGA1 --off --output LVDS1 --auto --rotate normal --reflect normal --primary
         ;;
+    small)
+        xrandr --output LVDS1 --scale 0.67x0.67
+        ;;
     default)
         # use just display of nb
         #xrandr --output HDMI3 --off --output LVDS1 --auto --rotate normal --reflect normal --primary
