@@ -1,0 +1,33 @@
+colored () {
+    local CLR="$1"
+    shift
+    echo -e "\033[${CLR}m$@\033[00m";
+}
+
+red () { colored "0;31" "$@"; }
+red_bold () { colored "1;31" "$@"; }
+
+purple () { colored "0;35" "$@"; }
+purple_bold () { colored "1;35" "$@"; }
+
+blue () { colored "0;34" "$@"; }
+blue_bold () { colored "1;34" "$@"; }
+
+yellow () { colored "0;33" "$@"; }
+yellow_bold () { colored "1;33" "$@"; }
+
+green () { colored "0;32" "$@"; }
+green_bold () { colored "1;32" "$@"; }
+
+black () { colored "0;30" "$@"; }
+gray () { colored "1;30" "$@"; }
+
+# not promised - depends on term config?
+#white () { colored "0;37" "$@"; }
+#white_bold () { colored "1;37" "$@"; }
+
+error() { red_bold "$@"; }
+warn() { red "$@"; }
+info() { yellow_bold "$@"; }
+notice() { green "$@"; }
+debug() { gray "$@"; }
