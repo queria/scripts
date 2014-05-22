@@ -1,13 +1,19 @@
 #!/bin/bash
+EXIT_HELP=0
+EXIT_NOCFG=11
+EXIT_NOFILES=21
+EXIT_NOPATT=31
+
+CFGF=~/mv-patterns
 
 usage() {
     echo ""
     echo "Usage:"
     echo ""
-    echo "mv2pattern pattern-id source-file-path/name ident-in-series[=auto]"
+    echo "mv2pattern (--help | --list | pattern-id source-file-path/name[,...])"
     echo ""
     echo "Example:"
-    echo "  With pattern (in ~/mv-patterns file) defined like:"
+    echo "  With pattern (in ${CFGF} file) defined like:"
     echo "  > cirros_PREFIX=\"/tmp/cirros-\""
     echo "  > cirros_SUFFIX=\"tar.gz\""
     echo "  Following command:"
@@ -17,53 +23,77 @@ usage() {
     echo "  Would move the specified file (~/Downloads/...)"
     echo "  to /tmp/cirros-3.11.tar.gz"
     echo ""
-    echo "In the mv-patterns you can use \"%suff\" in the suffix part"
-    echo "Which will be replaced with original suffix (after last dot) of file"
+    echo "--list ... print known Pattern-IDs"
     echo ""
-    echo "As *ident-in-series* you can use 'auto' (default when ident is not specified)"
-    echo "which will try to auto-detect the serie and episode number"
-    echo "from source-file-name as S0E0 or 0x0? (case-insensitive, 0=0-9+)."
+    echo "In the mv-patterns you can use \"%suff\" in the suffix part."
+    echo "Which will be replaced with original suffix (after last dot) of file."
+    echo "And \"%suff\" is also default value of _SUFFIX."
     echo ""
+    exit $1
 }
 
-if [[ -z "$1" || -z "$2" || "$1" == "--help" ]]; then
-    # improper amount of args or help requested
-    usage
-    exit 0
+[[ "x$1" = "x--help" ]] && usage $EXIT_HELP
+[[ ! -f "$CFGF" ]] && usage $EXIT_NOCFG
+
+PRETEND="no"
+INPLACE="no"
+OPTS=()
+for OPT in "$@"; do
+    if [[ "x$OPT" = "x--list" ]]; then
+        sed -nr 's/(.*)_(PREFIX|SUFFIX)=.*/\1/p' "$CFGF" | sort -u
+        exit $?
+    elif [[ "x$OPT" = "x--pretend" ]]; then
+        PRETEND="yes"
+        echo "[ pretend mode on ]"
+    elif [[ "x$OPT" = "x--inplace" ]]; then
+        INPLACE="yes"
+        echo "[ renaming in place ]"
+    else
+        OPTS=("${OPTS[@]}" "$OPT")
+    fi
+done
+
+
+PATT_ID="${OPTS[0]}"
+OPTS=("${OPTS[@]:1}")
+
+source "$CFGF"
+PREFIX="$(eval echo "\${${PATT_ID}_PREFIX}")"
+SUFFIX="$(eval echo "\${${PATT_ID}_SUFFIX}")"
+[[ -z "$SUFFIX" ]] && SUFFIX="%suff"
+shift
+
+if [[ -z "$PREFIX" ]]; then
+    echo "Prefix empty - probably wrong pattern-id?"
+    exit $EXIT_NOPATT
 fi
 
-if [[ ! -f ~/mv-patterns ]]; then
-    echo "Create ~/mv-patterns like..."
-    echo ""
-    echo "PATT_PREFIX"
-    echo "PATT_SUFFIX"
-    usage
-    exit 1
-fi
-
-if [[ ! -f "$2" ]]; then
-    echo "ERROR: File '$1' NOT FOUND"
-    usage
-    exit 2
+if [[ "$INPLACE" = "yes" ]]; then
+    PREFIX="$(basename "$PREFIX")"
 fi
 
 
-. ~/mv-patterns
 
-set -e
-
-SRC="$2"
-ORIG_SUFF=".${SRC##*.}"
-PREFIX="$(eval echo "\${${1}_PREFIX}")"
-SUFFIX="$(eval echo "\${${1}_SUFFIX}")"
-SUFFIX="${SUFFIX/\%suff/${ORIG_SUFF}}"
-SEQ_IDENT="${3:-auto}"
-
-if [[ "$SEQ_IDENT" == "auto" ]]; then
-    SEQ_IDENT=$(basename "$SRC" | perl -ne '/(s)?(\d+)(?(1)e|x)(\d+)/i && printf("S%02dE%02d", $2, $3);')
+if [[ $# = 0 ]]; then
+    echo "No file specified!"
+    exit $EXIT_NOFILES
 fi
 
-TARGET="${PREFIX}${SEQ_IDENT:?"Sequence identifier is empty, auto-detection failed?!"}${SUFFIX}"
+for FILE in "${OPTS[@]}"; do
+    if [[ ! -f "$FILE" ]]; then
+        echo "ERROR: File '$FILE' NOT FOUND"
+        continue
+    fi
+    orig_suff=".${FILE##*.}"
+    suff="${SUFFIX/\%suff/${orig_suff}}"
 
-mv -v -i "${SRC}" "${TARGET}"
+    seq_ident=$(basename "$FILE" | perl -ne '/(s)?(\d+)(?(1)e|x)(\d+)/i && printf("S%02dE%02d", $2, $3);')
 
+    TARGET="${PREFIX}${seq_ident:?"Sequence identifier is empty, auto-detection failed?!"}${suff}"
+
+    if [[ "$PRETEND" = "yes" ]]; then
+        echo -e "\"\033[00;32m${TARGET}\033[00m\" <== \"${FILE}\""
+    else
+        mv -v -i "${FILE}" "${TARGET}"
+    fi
+done
