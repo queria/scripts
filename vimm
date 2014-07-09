@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# Use this as:
+#  $ vimm <file_path:line_num>...
+#  $ vimm path/to/fileA:12 path/to/fileB:341 ...
+# it will open all the files in tabs
+# and jump in all of them to specified line
+
+FILES=()
+LINES=()
+
+while [[ "$#" -gt 0 ]]; do
+    ARG="$1"
+    shift
+
+
+    FILE="${ARG%:*}"
+    LINE="${ARG##*:}"
+
+    FILES=( "${FILES[@]}" "$FILE" )
+    LINES=( "${LINES[@]}" "$LINE" )
+
+    # debug:
+    #echo "$ARG => $FILE ... $LINE"
+
+done
+
+# debug:
+#echo "files: ${FILES[@]}"
+#echo "lines: ${LINES[@]}"
+
+
+CMDS=""
+
+# first file should not be in tab
+# so handle specially
+FIRST_FILE="${FILES[0]}"
+unset FILES[0]
+
+CMDS="${CMDS}:e ${FIRST_FILE}\n"
+
+for FILE in "${FILES[@]}"; do
+    CMDS="${CMDS}:tabe ${FILE}\n"
+done
+
+idx=1
+for LINE in "${LINES[@]}"; do
+    CMDS="${CMDS}:tabn $idx\n"
+    CMDS="${CMDS}:${LINE}\n"
+    idx=$(( $idx + 1 ))
+done
+
+tmpf="$(mktemp)"
+trap "rm -f $tmpf" EXIT
+echo -e "$CMDS" > $tmpf
+exec vim -s $tmpf
