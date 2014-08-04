@@ -1,76 +1,157 @@
 #!/usr/bin/env python
 # vim: set fileencoding=utf-8 et sw=4 ts=4 ft=python:
 
+from __future__ import print_function
 import datetime
 import hashlib
+import logging
 import os
+import pickle
 import re
 import requests
 import sys
+import textwrap
+import time
 import yaml
 
 
+logging.basicConfig(level=logging.INFO)
+logging.getLogger('requests').setLevel(logging.WARNING)
+LOG = logging.getLogger('mu-online')
+
+
 def print_help():
-    print('Usage: mu-online'
-          ' [--help]'
-          ' [--fresh]'
-          ' [--sort <key>]'
-          ' [--reset <charname>]')
-    print('')
-    print('')
-    print(' --help:    show this help')
-    print(' --fresh:   ignore local cache and force refresh from server')
-    print(' --sort:    sort list of players based on specified key:')
-    print('            [name, level, reset, class, guild, map, conn_time]')
-    print(' --reset:   when specified, instead of listing online players,')
-    print('            your character <charname> will be reset,')
-    print('            and stat points distributed, based on config file.')
-    print('')
-    print('All options may be specified even without dashes.')
-    print('')
-    print('Examples:')
-    print(' mu-online  ... list online players')
-    print(' mu-online fresh sort map  ... list online ordered by map name,')
-    print('                               local cache ignored')
-    print(' mu-online reset liu  ... reset char liu (see config file below)')
-    print('')
-    print('')
-    print('If you don\'t have ~/.muonline.yaml config yet,'
-          ' you have to create one!')
-    print('')
-    print('''Example ~/.muonline.yaml content (for DreamMu.cz):
----
-dream:
-    url: http://dreammu.cz/index.php
-    start: <table.*class="themain".*
-    end: </table>
-    char:
-        - <tr>
-        - \W*<td{attrs}>{in_tag}</td>
-        - \W*<td{attrs}>(?P<name>{in_tag})</td>
-        - \W*<td{attrs}>(?P<level>{in_tag})</td>
-        - \W*<td{attrs}>(?P<reset>{in_tag})</td>
-        - \W*<td{attrs}>(?P<class>{in_tag})</td>
-        - \W*<td{attrs}>(?P<guild>{in_tag})</td>
-        - \W*<td{attrs}>(?P<map>{in_tag})</td>
-        - \W*<td{attrs}>(?P<conn_time>{in_tag})</td>
-        - \W*<td{attrs}><img {attrs}></td>
-        - \W*</tr>
-    err_msg: <div class="msg_error"{attrs}>(?P<msg>{in_tag})</div>
-    info: [LiuKan, Barr]
-    warn: [Explosion, Anathema]
-    acc: <---YOUR-LOGIN--->
-    pass: <---YOUR-PASSWORD--->
-    res_stats:
-        liu:
-            name: LiuKan
-            rid: <---optional, find this number in reset character url--->
-            str: 30000
-            agi: 30000
-            vit: 20000
-            eng: 30000''')
-    print('')
+    print(textwrap.dedent('''
+    Usage: mu-online [opts/actions]
+
+
+    Actions:
+     *default*:           if no action is specified,
+                          list of characters which are online/in-game
+                          will be fetched and printed
+
+     --help:              show this help and quit
+
+     --reset <charid>:    reset characters level and distribute stat points,
+                          based on what is in config file,
+                          dict key in config has to match given <charid>
+
+     --acc <search_term>: search for characters and accounts containing
+                          the search_term in their name (case insensitive),
+                          print account and all it's characters for all matches
+
+                          Note: as this may cause multiple slow requests
+                            going to the servers web site,
+                            this always reads just from cache by default,
+                            so for reloading the info from server,
+                            use *fresh* opt described below.
+
+
+    General options:
+     --srv <id>:     id of server (otherwise value of "default" from config
+                     file is used)
+
+    --debug:         enable verbose debugging info
+
+
+    Options for listing of online accounts:
+
+     --fresh:   ignore local cache and force refresh from server
+
+     --sort:    sort list of online players based on specified key:
+                [name, level, reset, class, guild, map,
+                 time, exp_speed, eta]
+
+     --auto:    keep running and automatically refreshing online list
+
+
+    All options may be specified with or without two-dashes prefix.
+
+
+    Examples:
+
+     mu-online  ... list online players
+     mu-online fresh sort map  ... list online ordered by map name,
+                                   local cache ignored
+     mu-online reset liu  ... reset char liu (see config file below)
+
+
+    If you don\'t have ~/.muonline.yaml config yet,
+     you have to create one!
+
+    Example ~/.muonline.yaml content (for DreamMu.cz):
+    ---
+    default: dream
+    dream:
+        info: [LiuKan, Barr]
+        warn: [Explosion, Anathema]
+        acc: <---YOUR-LOGIN--->
+        pass: <---YOUR-PASSWORD--->
+        res_stats:
+            liu:
+                name: LiuKan
+                rid: <---optional, find this number in reset character url--->
+                str: 30000
+                agi: 30000
+                vit: 20000
+                eng: 30000
+    '''))
     sys.exit(1)
+
+
+def any(where, *what):
+    """
+    Search 'where' for any of the followup arguments.
+
+    If only one additional argument (after 'where') is
+    provided but not matching, it is also iterated over.
+    So both forms: any(argv, '--help', '-h', 'help')
+    or any(argv, cmd_opts) can be used.
+    """
+    if len(what) == 1 and what not in where:
+        what = what[0]
+    try:
+        for item in what:
+            if item in where:
+                return True
+    except TypeError:
+        pass
+
+
+def key(key_name):
+    """
+    Creates getter method for a given key.
+
+    >>> nameof = key('name')
+    >>> nameof({'age':99, 'name':'Josh'})
+    'Josh'
+    >>> map(nameof, [{'a':1, 'name':'A'}, {'b':2, 'name':'B'}])
+    ['A', 'B']
+    """
+    def _fetch(item):
+        return item[key_name]
+    return _fetch
+
+
+def tr(struct, key):
+    """
+    Get value for `key` from `struct` or the `key` itself.
+
+    Just shortcut for dict.get(key, key):
+    >>> some = {'a':'no'}
+    >>> tr(some, 'x')
+    'x'
+    >>> tr(some, 'a')
+    'no'
+    """
+    return struct.get(key, key)
+
+
+def delta_str(timedelta):
+    s = timedelta.seconds
+    return '%d:%02d' % (
+        s / 60,
+        s % 60)
 
 
 REG_HELPERS = {
@@ -96,6 +177,7 @@ CLASS_MARKS = {
     'Dark Lord': 'DL',
     'Lord Emperor': 'LE',
 
+    'Summoner': 'SU',
     'Bloody Summoner': 'BS',
     'Dimension Master': 'iM',
 }
@@ -108,41 +190,384 @@ COLOR = {
 }
 
 
-def any(where, *what):
-    """
-    Search 'where' for any of the following arguments.
+class RemoteServer(object):
+    SID = 'default'
+    URL = None
 
+    def __init__(self, cfg):
+        super(RemoteServer, self).__init__()
+        self.cfg = cfg
+        self.no_auth = False
+        self.__session = None
 
-    If only one additional argument (after 'where') is
-    provided but not matching, it is also iterated over.
-    So both forms: any(argv, '--help', '-h', 'help)
-    or any(argv, cmd_opts) can be used.
-    """
-    if len(what) == 1 and what not in where:
-        what = what[0]
-    try:
-        for item in what:
-            if item in where:
-                return True
-    except TypeError:
+    def cache_path(self, content_type):
+        if content_type == 'online':
+            suff = ''
+        else:
+            suff = '_%s' % content_type
+
+        cache_path = os.path.expanduser('~/.cache/mu-online')
+        os.path.isdir(cache_path) or os.mkdir(cache_path)
+        cache_path = '%s/%s%s.pck' % (cache_path, self.SID, suff)
+        return cache_path
+
+    @property
+    def online_cache_path(self):
+        return self.cache_path('online')
+
+    @property
+    def account_cache_path(self):
+        return self.cache_path('accounts')
+
+    @property
+    def session(self):
+        if self.__session is None:
+            self.__session = requests.Session()
+            if not self.no_auth:
+                self.login()
+        return self.__session
+
+    def get(self, url):
+        reply = self.session.get(self.URL % url)
+        self.check_err(reply)
+        return reply
+
+    def post(self, url, data=None):
+        reply = self.session.post(self.URL % url, data=data)
+        self.check_err(reply)
+        return reply
+
+    def char(self, char_key):
+        return self.cfg['res_stats'][char_key]
+
+    def grep_table(self, source, start_reg, stop_reg):
+        lines = source.split('\n')
+        table_lines = []
+        for line in lines:
+            if not table_lines:
+                if start_reg.match(line):
+                    table_lines.append(line)
+            else:
+                table_lines.append(line)
+                if stop_reg.match(line):
+                    break
+        return ''.join(table_lines)
+
+    def parse_charinfo(self, table, char_reg):
+        chars = [char.groupdict()
+                 for char
+                 in char_reg.finditer(table)]
+        for ch in chars:
+            for k, v in ch.items():
+                v = v.strip()
+                if k in ['reset', 'level']:
+                    v = int(v)
+                ch[k] = v
+            if 'class' in ch:
+                ch['class_mark'] = tr(CLASS_MARKS, ch['class'])
+            ch.setdefault('guild', '')
+            ch.setdefault('class', '')
+            ch.setdefault('class_mark', '')
+        return chars
+
+    def check_err(self, reply):
+        reply.encoding = 'UTF-8'
+        webpage_err = self.parse_errmsg(reply.text)
+        if webpage_err is not None:
+            # big debug ....
+            LOG.debug(reply.encoding)
+            LOG.debug(type(reply.text))
+            LOG.debug(webpage_err.group(0))
+            LOG.debug(type(webpage_err.group(0)))
+
+            LOG.debug('G1')
+            LOG.debug(webpage_err.group(1))
+            LOG.debug(type(webpage_err.group(1)))
+
+            LOG.debug('G<msg>')
+            LOG.debug(webpage_err.group('msg'))
+            LOG.debug(type(webpage_err.group('msg')))
+
+            LOG.debug(ValueError(webpage_err.group('msg').encode('utf-8')))
+            raise ValueError(webpage_err.group('msg').encode('utf-8'))
+
+    def parse_errmsg(self, source):
         pass
 
 
-def key(key_name):
-    def _fetch(item):
-        return item[key_name]
-    return _fetch
+class DreamMuServer(RemoteServer):
+    SID = 'dream'
+    URL = 'http://dreammu.cz/index.php?%s'
+
+    def __init__(self, *args, **kwargs):
+        super(DreamMuServer, self).__init__(*args, **kwargs)
+
+    def online_url(self):
+        return self.URL % 'page_id=onlinehraci'
+
+    def login(self):
+        LOG.debug('Logging in acc %s', self.cfg['acc'])
+        data = {
+            'uss_id': None,
+            'uss_password': None,
+            'Submit': 'Prihlásiť',
+            'process_login': ''}
+        data['uss_id'] = self.cfg['acc']
+        data['uss_password'] = self.cfg['pass']
+        reply = self.post('page_id=login', data)
+        if 'page_id=login' in reply.url:
+            raise ValueError('Authentication failed, check if You'
+                             ' specified correct account and password!')
+        LOG.info('Logged in as %s', self.cfg['acc'])
+
+    def _rid(self, char_info):
+        """Fetch special character-request ID"""
+        LOG.debug('searching for %s\'s rid ...', char_info['name'])
+        if 'rid' in char_info:
+            LOG.debug('rid %s defined in config' % char_info['rid'])
+            return char_info['rid']
+        reply = self.get('page_id=user_cp&panel=reset_character')
+        found = re.search(('<td.*?iR_name".*?>%s</td>.*?<input'
+                          ' type="button".*?onclick=".*?rid=([0-9]+)\'"')
+                          % char_info['name'],
+                          reply.text,
+                          re.DOTALL)
+        if not found:
+            LOG.warning(reply.text)
+            raise ValueError(('Failed to find RID for %s,'
+                              ' and it was not specified in config.')
+                             % char_info['name'])
+
+        LOG.debug('rid %s found' % found.group(1))
+        return int(found.group(1))
+
+    def reset(self, char_key):
+        char = self.char(char_key)
+        LOG.debug('Going to reset char %s ...' % char['name'])
+        self.get('page_id=user_cp&panel=reset_character&rid=%d'
+                 % self._rid(char))
+        LOG.info('Level reset done for character %s.' % char['name'])
+
+    def add_stats(self, char_key):
+        char = self.char(char_key)
+        LOG.debug('Adding stats ...')
+        LOG.debug(yaml.dump(char))
+
+        sub_url = 'page_id=user_cp&panel=add_points'
+        data = {
+            'levelup_id': None,
+            'token': None,
+            'levelup_add': '',
+            'submit': "Pridaj body"}
+        data.update(char)
+
+        char_form_reg = re.compile((
+            '<td{attrs}class="iR_name"{attrs}>'
+            + char['name']
+            + '<input type="hidden" name="levelup_id" value="(?P<id>[0-9]+)">'
+            + '<input type="hidden" name="levelup_add">'
+            + '<input type="hidden" name="token" value="(?P<token>[^"]+)">'
+            + '</td>').format(**REG_HELPERS))
+
+        reply = self.get(sub_url)
+        found = char_form_reg.search(reply.text)
+        if not found:
+            raise ValueError('Unable to find correct "add_points" form!')
+
+        data['levelup_id'] = str(found.group('id'))
+        data['token'] = str(found.group('token'))
+
+        reply = self.post(sub_url, data)
+
+        LOG.info('Stats added.')
+
+    def char_info(self, char_key):
+        name = self.char(char_key)['name']
+
+        reply_res = self.get('page_id=user_cp&panel=reset_character')
+        found_res = re.search(('<td.*?iR_name".*?>%s</td>'
+                               '.*?iR_stats">Level: ([0-9]+)</td>'
+                               '.*?iR_stats">Zen: ([0-9,]+)</td>'
+                               '.*?iR_stats">Resets: ([0-9]+)</td>')
+                              % name,
+                              reply_res.text,
+                              re.DOTALL)
+        return {
+            'name': name,
+            'level': int(found_res.group(1)),
+            'reset': int(found_res.group(3)),
+            'zen': found_res.group(2)
+        }
+
+    def grep_table(self, source):
+        return super(DreamMuServer, self).grep_table(
+            source,
+            re.compile('<table.*class="themain".*'),
+            re.compile('</table>'))
+
+    def parse_charinfo(self, source):
+        return super(DreamMuServer, self).parse_charinfo(
+            source,
+            re.compile(
+                ('<tr>'
+                 '\W*<td{attrs}>{in_tag}</td>'
+                 '\W*<td{attrs}>(?P<name>{in_tag})</td>'
+                 '\W*<td{attrs}>(?P<level>{in_tag})</td>'
+                 '\W*<td{attrs}>(?P<reset>{in_tag})</td>'
+                 '\W*<td{attrs}>(?P<class>{in_tag})</td>'
+                 '\W*<td{attrs}>(?P<guild>{in_tag})</td>'
+                 '\W*<td{attrs}>(?P<map>{in_tag})</td>'
+                 '\W*<td{attrs}>(?P<time>{in_tag})</td>'
+                 '\W*<td{attrs}><img {attrs}></td>'
+                 '\W*</tr>').format(**REG_HELPERS)))
+
+    def parse_char_acc_info(self, source):
+        acc_char_pattern = re.compile((
+            '<tr>'
+            '\W*<td{attrs} class="iR_rank">[0-9]+</td>'
+            '\W*<td{attrs} class="iR_name" >(?P<name>{in_tag})</td>'
+            '\W*<td{attrs}><img{attrs}></td>'
+            '\W*<td{attrs} class="iR_stats" >Sila: (?P<stat_str>{in_tag})'
+            '</td>'
+            '\W*<td{attrs} class="iR_stats" >Vitalita: (?P<stat_vit>{in_tag})'
+            '</td>'
+            '\W*<td{attrs} class="iR_stats" >Guilda: (?P<guild>{in_tag})</td>'
+            '\W*</tr>'
+            '\W*<tr>'
+            '\W*<td{attrs} class="iR_class">(?P<class>{in_tag})</td>'
+            u'\W*<td{attrs} class="iR_stats">Obratnosť: (?P<stat_agi>{in_tag})'
+            '</td>'
+            '\W*<td{attrs} class="iR_stats">Energia: (?P<stat_ene>{in_tag})'
+            '</td>'
+            '\W*<td{attrs} class="iR_stats_level">Level (?P<level>{in_tag})'
+            '</td>'
+            '\W*</tr>'
+            '\W*<tr>'
+            '\W*<td{attrs} class="iR_status"{attrs}>(?P<accname>{in_tag})'
+            '</td>'
+            '\W*<td{attrs} class="iR_status"><div{attrs}>'
+            u'<a{attrs}get\.php\?aM=(?P<charid>[0-9]+){attrs}>Lokácia</a>'
+            '</div></td>'
+            '\W*<td{attrs} class="iR_stats">Com: (?P<stat_cmd>{in_tag})</td>'
+            u'\W*<td{attrs} class="iR_stats_reset">Počet resetov:'
+            ' (?P<reset>{in_tag})</td>'
+            '\W*</tr>'
+        ).format(**REG_HELPERS))
+        chars = super(DreamMuServer, self).parse_charinfo(
+            source, acc_char_pattern)
+
+        return chars
+
+    def acc_char_list(self, refresh=False):
+        acc_chars = {}
+
+        if not refresh:
+            try:
+                with open(self.account_cache_path) as cache:
+                    acc_chars = pickle.Unpickler(cache).load()
+            except IOError:
+                pass
+
+        if not acc_chars:
+            class_types = [  # noqa
+                0, 1, 3,  # dw, sm, gm
+                16, 17, 19,  # dk, bk, bm
+                32, 33, 35,  # elf, me, he
+                48, 50,  # mg, dm
+                64, 66,  # dl, le
+                80, 81, 83,  # su, bs, DimM
+            ]
+
+            # http://dreammu.cz/index.php?page_id=rankings&rank=characters&class=0
+            rankings_url = 'page_id=rankings&rank=characters&class=%d'
+            self.no_auth = True
+            for class_type in class_types:
+                LOG.info('Loading info for character class %d', class_type)
+                url = rankings_url % class_type
+                reply = self.get(url)
+                src = ''.join(reply.text.split('\n'))
+
+                chars = self.parse_char_acc_info(src)
+
+                for char in chars:
+                    acc_chars.setdefault(char['accname'], []).append(
+                        char)
+
+            with open(self.account_cache_path, 'w') as cache:
+                pickle.Pickler(cache).dump(acc_chars)
+
+        return acc_chars
+
+    def parse_errmsg(self, source):
+        return re.compile(
+            ('<div class="msg_error"{attrs}>'
+             '(?P<msg>{in_tag})'
+             '</div>').format(**REG_HELPERS)).search(source)
 
 
-def tr(struct, key):
-    return struct.get(key, key)
+class DaemonicServer(RemoteServer):
+    SID = 'daemu'
+    URL = 'http://www.daemu.cz/%s'
 
+    def __init__(self, *args, **kwargs):
+        super(DaemonicServer, self).__init__(*args, **kwargs)
 
-def delta_str(timedelta):
-    s = timedelta.seconds
-    return '%d:%02d' % (
-        s / 60,
-        s % 60)
+    def online_url(self):
+        return self.URL % 'online.html'
+
+    def grep_table(self, source):
+        return super(DaemonicServer, self).grep_table(
+            source,
+            re.compile('<h1>Hráči online</h1>'),
+            re.compile('<b>Online:</b>.*'))
+        # re.compile('<table.*class="themain".*'),
+        # re.compile('</table>'))
+
+    def parse_charinfo(self, source):
+        return super(DaemonicServer, self).parse_charinfo(
+            source,
+            re.compile('<tr>'
+                       '<td{attrs}>'
+                       '<img{attrs}>'
+                       '\W*<a{attrs}>(?P<name>{in_tag})</td>'
+                       '<td>(?P<map>{in_tag})</td>'
+                       '<td>(?P<reset>{in_tag})</td>'
+                       '<td>(?P<level>{in_tag})</td>'
+                       '<td>(?P<time>{in_tag})</td>'
+                       '</tr>'.format(**REG_HELPERS)))
+
+    def login(self):
+        LOG.debug('Logging in acc %s', self.cfg['acc'])
+        data = {
+            'ulogin': None,
+            'uheslo': None,
+            'trvale': 'None'}
+        data['ulogin'] = self.cfg['acc']
+        data['uheslo'] = self.cfg['pass']
+        reply = self.post('login.html', data)
+        if 'page_id=login' in reply.url:
+            raise ValueError('Authentication failed, check if You'
+                             ' specified correct account and password!')
+        LOG.info('Logged in as %s', self.cfg['acc'])
+
+    def reset(self, char_key):
+        char = self.char(char_key)
+        LOG.debug('Going to reset char %s ...' % char['name'])
+        self.get('page_id=user_cp&panel=reset_character&rid=%d'
+                 % self._rid(char))
+        LOG.info('Level reset done for character %s.' % char['name'])
+
+    def add_stats(self, char_key):
+        LOG.warning('add_stats not implemented yet!')
+
+    def char_info(self, char_key):
+        LOG.warning('char_info not implemented yet!')
+        return {
+            'name': '',
+            'level': 0,
+            'reset': 0,
+            'zen': '0,-'
+        }
 
 
 def fetch_page(url, refresh=False):
@@ -152,60 +577,34 @@ def fetch_page(url, refresh=False):
         'muonlinelist_%d_%s' % (os.geteuid(),
                                 hashlib.md5(url).hexdigest()))
     max_cache = datetime.timedelta(minutes=2)
+    now = datetime.datetime.now()
     if not refresh:
         try:
             last = datetime.datetime.fromtimestamp(
                 os.stat(cache_path).st_mtime)
-            age = (datetime.datetime.now() - last)
+            age = (now - last)
             if age < max_cache:
                 with open(cache_path) as cache_file:
                     content = cache_file.read()
-                    print('%s-- cached %s --%s'
-                          % (COLOR['RED'],
-                             delta_str(age),
-                             COLOR['BLACK']))
+                    LOG.warn('%s-- cached %s --%s'
+                             % (COLOR['RED'],
+                                delta_str(age),
+                                COLOR['BLACK']))
         except (IOError, OSError):
             content = None
     if content is None:
         content = requests.get(url).text
         with open(cache_path, 'w') as cache_file:
             cache_file.write(content.encode('utf-8'))
-    return content
-
-
-def grep_table(content, start_reg, end_reg):
-    lines = content.split('\n')
-    table_lines = []
-    for line in lines:
-        if not table_lines:
-            if start_reg.match(line):
-                table_lines.append(line)
-        else:
-            table_lines.append(line)
-            if end_reg.match(line):
-                break
-    return ''.join(table_lines)
-
-
-def parse_charinfo(table, char_reg):
-    chars = [char.groupdict()
-             for char
-             in char_reg.finditer(table)]
-    for ch in chars:
-        for k, v in ch.items():
-            v = v.strip()
-            if k in ['reset', 'level']:
-                v = int(v)
-            ch[k] = v
-        if 'class' in ch:
-            ch['class_mark'] = tr(CLASS_MARKS, ch['class'])
-    return chars
+    fetched_at = datetime.datetime.fromtimestamp(
+        os.stat(cache_path).st_mtime)
+    return (content, fetched_at)
 
 
 def print_chars(characters, info=None, warn=None):
     props = {
-        'ln_n': 0,  # longest_name
-        'ln_g': 0,  # longest_guild_name
+        'ln_n': 1,  # longest_name
+        'ln_g': 1,  # longest_guild_name
         'mark': '',
     }
 
@@ -224,167 +623,173 @@ def print_chars(characters, info=None, warn=None):
             ch['mark_end'] = COLOR['BLACK']
         if 'mark_end' not in ch:
             ch['mark_end'] = ch['mark']
-        print(("{mark} {name:{ln_n}} ({class_mark})"
-               "  {level:<3} {reset:>3}"
-               "  [{guild:{ln_g}}]"
-               "  in {map:<16}"
-               "  from {conn_time} {mark_end}").format(
-            **ch))
+        try:
+            print(("{mark} {name:{ln_n}} ({class_mark})"
+                   "  {level:<3} {reset:>3}"
+                   "  lpm:{exp_speed:.2f} eta_min:{eta:.2f}"
+                   "  _{acc}_"
+                   "  [{guild:{ln_g}}]"
+                   "  in {map:<16}"
+                   "  from {time} {mark_end}").format(
+                **ch))
+        except Exception:
+            LOG.exception('Unable to format character')
+            for k in ch:
+                LOG.warn("%s: %s => %s" % (k, type(ch[k]), ch[k]))
 
 
-def list_online(cfg, args):
-    page = fetch_page(cfg['url'] + '?page_id=onlinehraci',
-                      refresh=args['fresh'])
-    table = grep_table(page, cfg['start'], cfg['end'])
-    chars = parse_charinfo(table, cfg['char'])
-    print_chars(sorted(chars, key=key(args['sort'])),
-                warn=cfg['warn'],
-                info=cfg['info'])
+def print_acc_chars(acc_chars):
+    for acc_name, chars in acc_chars.items():
+        print(acc_name)
+        for char in chars:
+            print(('  {name} [{guild}]'
+                   '  {level} /{reset}'
+                   '  {class_mark}'
+                   ).format(**char))
 
 
-def check_err(reply, cfg):
-    reply.encoding = 'UTF-8'
-    webpage_err = cfg['err_msg'].search(reply.text)
-    if webpage_err is not None:
-        #### big debug ....
-        #print(reply.encoding)
-        #print(type(reply.text))
-        #print(cfg['err_msg'].pattern)
-        #print(webpage_err.group(0))
-        #print(type(webpage_err.group(0)))
+def compare_last(srv, chars, lastchanged=None):
+    last_chars = {}
+    try:
+        with open(srv.online_cache_path) as cache:
+            last_chars = pickle.Unpickler(cache).load()
+    except IOError:
+        pass
 
-        #print('G1')
-        #print(webpage_err.group(1))
-        #print(type(webpage_err.group(1)))
+    for char in chars:
+        # add char to history if not there yet
+        if char['name'] not in last_chars:
+            char['lastchanged'] = lastchanged
+            char['exp_speed'] = 0
+            last_chars[char['name']] = char
 
-        #print('G<msg>')
-        #print(webpage_err.group('msg'))
-        #print(type(webpage_err.group('msg')))
+        lchar = last_chars[char['name']]
 
-        #print ValueError(webpage_err.group('msg').encode('utf-8'))
-        raise ValueError(webpage_err.group('msg').encode('utf-8'))
+        if lchar['lastchanged'] == lastchanged:
+            char['exp_speed'] = lchar['exp_speed']
+        else:
+            # time diff
+            age = lastchanged - lchar['lastchanged']
+            age = max(0.0, age.total_seconds() / 60.0)
 
+            # level diff
+            if char['reset'] != lchar['reset']:
+                lvldiff = 0
+                LOG.debug('%s: reset mismatch: <%s:%s> <%s:%s>',
+                          char['name'],
+                          type(char['reset']), char['reset'],
+                          type(lchar['reset']), lchar['reset'])
+            else:
+                lvldiff = char['level'] - lchar['level']
+                LOG.debug('%s: lvldiff=%s', char['name'], lvldiff)
+                lvldiff = max(0, lvldiff)
 
-def login(cfg):
-    # POST index.php?page_id=login
-    print('\nLogging in acc %s ...' % cfg['acc'])
-    session = requests.Session()
-    data = {
-        'uss_id': None,
-        'uss_password': None,
-        'Submit': 'Prihlásiť',
-        'process_login': ''}
-    data['uss_id'] = cfg['acc']
-    data['uss_password'] = cfg['pass']
-    reply = session.post(cfg['url'] + '?page_id=login',
-                         data=data)
-    check_err(reply, cfg)
-    if 'page_id=login' in reply.url:
-        raise ValueError('Authentication failed, check you specified correct'
-                         ' account and password!')
-    print('- done')
-    return session
+            LOG.debug(('%s: age=%.4f lvldiff=%d lvl=%d llvl=%d'
+                       ' lastchanged=%s beforechanged=%s'),
+                      char['name'], age, lvldiff,
+                      char['level'], lchar['level'],
+                      lastchanged, lchar['lastchanged'])
 
+            # level-per-minute exping speed
+            exp_speed = 0
+            if age <= 0:
+                exp_speed = 0
+            else:
+                exp_speed = lvldiff / age
 
-def find_rid(session, cfg, char):
-    print('- searching for %s\'s rid ...' % char['name'])
-    if 'rid' in char:
-        print('- - rid %s defined in config' % char['rid'])
-        return char['rid']
-    reply = session.get(cfg['url']
-                        + '?page_id=user_cp&panel=reset_character')
-    check_err(reply, cfg)
-    found = re.search(('<td.*?iR_name".*?>%s</td>.*?<input'
-                      ' type="button".*?onclick=".*?rid=([0-9]+)\'"')
-                      % char['name'],
-                      reply.text,
-                      re.DOTALL)
-    if not found:
-        print(reply.text)
-        raise ValueError(('Failed to find RID for %s,'
-                          ' and it was not specified in config.')
-                         % char['name'])
+            # pass exp speed to current charlist
+            char['exp_speed'] = exp_speed
+            # store exp_speed, level and lastchanged for next time
+            lchar['exp_speed'] = exp_speed
+            lchar['level'] = char['level']
+            lchar['reset'] = char['reset']
+            lchar['lastchanged'] = lastchanged
+        if char['exp_speed'] != 0:
+            # res_lvl = 300 *
+            char['eta'] = (400 - char['level']) / char['exp_speed']
+        else:
+            char['eta'] = 0
 
-    print('- - rid %s found' % found.group(1))
-    return int(found.group(1))
+    with open(srv.online_cache_path, 'w') as cache:
+        pickle.Pickler(cache).dump(last_chars)
 
-
-def do_reset(session, cfg, char):
-    print('\nGoing to reset char %s ...' % char['name'])
-
-    reply = session.get(cfg['url']
-                        + '?page_id=user_cp&panel=reset_character&rid=%d'
-                        % find_rid(session, cfg, char)
-                        )
-    check_err(reply, cfg)
-    print('- character reset')
+    return chars
 
 
-def add_stats(session, cfg, char):
-    print('\nAdding stats ...')
-    print('- %s' % yaml.dump(char))
+def list_online(srv, args):
+    (page, lastchanged) = fetch_page(
+        srv.online_url(),
+        refresh=args['fresh'])
+    table = srv.grep_table(page)
+    chars = srv.parse_charinfo(table)
+    compare_last(srv, chars, lastchanged)
+    print_statusline()
 
-    sub_url = '?page_id=user_cp&panel=add_points'
-    data = {
-        'levelup_id': None,
-        'token': None,
-        'levelup_add': '',
-        'submit': "Pridaj body"}
-    data.update(char)
+    add_char_acc_info(srv, chars)
 
-    char_form_reg = re.compile((
-        '<td{attrs}class="iR_name"{attrs}>'
-        + char['name']
-        + '<input type="hidden" name="levelup_id" value="(?P<id>[0-9]+)">'
-        + '<input type="hidden" name="levelup_add">'
-        + '<input type="hidden" name="token" value="(?P<token>[^"]+)">'
-        + '</td>').format(**REG_HELPERS))
+    sort_by = ['name']
+    if ',' in args['sort']:
+        sort_by += args['sort'].split(',')
+    else:
+        sort_by.append(args['sort'])
+    for sort_by_key in sort_by:
+        chars = sorted(chars, key=key(sort_by_key))
 
-    reply = session.get(cfg['url'] + sub_url)
-    check_err(reply, cfg)
-    found = char_form_reg.search(reply.text)
-    if not found:
-        raise ValueError('Unable to find correct "add_points" form!')
-
-    data['levelup_id'] = str(found.group('id'))
-    data['token'] = str(found.group('token'))
-
-    reply = session.post(cfg['url'] + sub_url, data=data)
-    check_err(reply, cfg)
-
-    print('- stats added')
+    print_chars(chars,
+                warn=srv.cfg['warn'],
+                info=srv.cfg['info'])
 
 
+def add_char_acc_info(srv, chars):
+    # FIXME: maybe issue if not already cached?
+    accounts = srv.acc_char_list(refresh=False)
+    char2acc = {}
+    for acc, acc_chars in accounts.items():
+        for char in acc_chars:
+            char2acc[char['name']] = acc
+    for idx, char in enumerate(chars):
+        chars[idx]['acc'] = char2acc.get(char['name'], '-')
 
-def char_info(session, cfg, char):
-    reply_res = session.get(cfg['url']
-                            + '?page_id=user_cp&panel=reset_character')
-    check_err(reply_res, cfg)
-    found_res = re.search(('<td.*?iR_name".*?>%s</td>'
-                          '.*?iR_stats">Level: ([0-9]+)</td>'
-                          '.*?iR_stats">Zen: ([0-9,]+)</td>'
-                          '.*?iR_stats">Resets: ([0-9]+)</td>')
-                          % char['name'],
-                          reply_res.text,
-                          re.DOTALL)
-    if not found_res:
-        print('Failed to get char lvl/res/zen info!')
+
+def acc_info(srv, args):
+    search_for = args['acc']
+    search_for = search_for.lower()
+    found = {}
+
+    acc_chars = srv.acc_char_list(refresh=args['fresh'])
+
+    for acc, chars in acc_chars.items():
+        if search_for in acc.lower():
+            found[acc] = chars
+        else:
+            for char in chars:
+                if search_for in char['name'].lower():
+                    found[acc] = chars
+                    break
+    print_acc_chars(found)
+
+
+def reset_char(srv, args):
+    char_key = args['reset']
+    # char = srv.cfg['res_stats'][char_key]
+
+    print_statusline()
+    srv.reset(char_key)
+    srv.add_stats(char_key)
+    info = srv.char_info(char_key)
+
+    if not info:
+        LOG.error('Failed to get char lvl/res/zen info!')
     else:
         print('\n%s:  %3d/%3d    %s zen'
-              % (char['name'],
-                 int(found_res.group(1)),
-                 int(found_res.group(3)),
-                 found_res.group(2)))
-
-
-def reset_char(cfg, args):
-    char_key = args['reset']
-    char = cfg['res_stats'][char_key]
-
-    login_sess = login(cfg)
-    do_reset(login_sess, cfg, char)
-    add_stats(login_sess, cfg, char)
-    char_info(login_sess, cfg, char)
+              % (info['name'],
+                 int(info.group(1)),
+                 int(info.group(3)),
+                 info.group(2)))
+    # login_sess = login(cfg)
+    # do_reset(login_sess, cfg, char)
+    # add_stats(login_sess, cfg, char)
+    # char_info(login_sess, cfg, char)
 
 
 def load_cfg(path='~/.muonline.yaml'):
@@ -392,12 +797,18 @@ def load_cfg(path='~/.muonline.yaml'):
     with open(os.path.expanduser(path)) as cfg_file:
         config = yaml.load(cfg_file.read())
 
-    for srv in config.values():
+    for srv_id in config.keys():
+        if srv_id == 'default':
+            continue
+        srv = config[srv_id]
+        srv['id'] = srv_id
+        srv.setdefault('info', [])
+        srv.setdefault('warn', [])
         # compile regexps read from config
-        for field in ['start', 'end', 'char', 'err_msg']:
-            if isinstance(srv[field], list):
-                srv[field] = ''.join(srv[field])
-            srv[field] = re.compile(srv[field].format(**REG_HELPERS))
+        # for field in ['start', 'end', 'char', 'err_msg']:
+        #     if isinstance(srv[field], list):
+        #         srv[field] = ''.join(srv[field])
+        #     srv[field] = re.compile(srv[field].format(**REG_HELPERS))
 
     return config
 
@@ -420,18 +831,58 @@ def parse_args(argv, with_val):
     return args
 
 
-if __name__ == '__main__':
+def print_statusline():
+    print("{0:^60}".format(str(datetime.datetime.now())))
 
-    args = parse_args(sys.argv, ['sort', 'reset'])
+
+def main():
+    servers = {}
+    servers[DaemonicServer.SID] = DaemonicServer
+    servers[DreamMuServer.SID] = DreamMuServer
+
+    if 'debug' in sys.argv or '--debug' in sys.argv:
+        LOG.setLevel(logging.DEBUG)
+        logging.getLogger('requests').setLevel(logging.DEBUG)
+        print('debugging')
+    if 'help' in sys.argv or '--help' in sys.argv:
+        print_help()
+    args = parse_args(sys.argv, ['sort', 'reset', 'srv', 'acc'])
     args.setdefault('fresh', False)
     args.setdefault('sort', 'name')
-    if args.get('help', False):
-        print_help()
 
-    cfg = load_cfg()['dream']
+    main_cfg = load_cfg()
+    srv_id = args.get('srv', main_cfg.get('default'))
+    srv_cfg = main_cfg[srv_id]
 
-    print("{0:^60}".format(str(datetime.datetime.now())))
+    srv = servers[srv_id](srv_cfg)
+
+    if 'acc' in args:
+        acc_info(srv, args)
+        return
     if 'reset' in args:
-        reset_char(cfg, args)
+        reset_char(srv, args)
+    if 'auto' in args:
+        wait_min = 3
+        wait_sec = wait_min * 60
+        wait_step = 10
+        try:
+            while True:
+                list_online(srv, args)
+                print('**** ', end='')
+                for x in xrange(wait_sec, 0, -wait_step):
+                    # for x in xrange(wait_step, wait_sec+1, wait_step):
+                    print('%d-' % x, end='')
+                    sys.stdout.flush()
+                    time.sleep(wait_step)
+                print('0 ****')
+                print('')
+        except KeyboardInterrupt:
+            LOG.info('Exiting ...')
     else:
-        list_online(cfg, args)
+        list_online(srv, args)
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception:
+        LOG.exception('Exiting ... Something unexpected happened?')
