@@ -89,7 +89,7 @@ for FILE in "${OPTS[@]}"; do
     orig_suff=".${FILE##*.}"
     suff="${SUFFIX/\%suff/${orig_suff}}"
 
-    seq_ident=$(basename "$FILE" | perl -ne '/(s)?(\d+)(?(1)e|x)(\d+)/i && printf("S%02dE%02d", $2, $3);')
+    seq_ident=$(basename "$FILE" | perl -ne '/(s)?(\d+)(?(1)(?(1)[- ]*e)|x)(\d+)/i && printf("S%02dE%02d", $2, $3);')
 
     TARGET="${PREFIX}${seq_ident:?"Sequence identifier is empty, auto-detection failed?!"}${suff}"
 
