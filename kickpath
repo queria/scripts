@@ -1,0 +1,24 @@
+#!/bin/bash
+ 
+# . /all/src/scripts/colorize
+# 
+# if [[ "$1" = "-v" || "$1" = "--verbose" ]]; then
+#     _verbose=1
+# fi
+# 
+# info "Orig:"
+# debug "$PATH"
+# 
+# info "Start:"
+PX="${PATH#$1:}"
+# debug "$PX"
+# 
+# info "Middle:"
+PX="${PX//:$1:/:}"
+# debug "$PX"
+# 
+# info "End:"
+PX="${PX%:$1}"
+# debug "$PX"
+
+export PATH="$PX"
