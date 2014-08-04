@@ -1,11 +1,13 @@
 #!/usr/bin/python
 # vim: set sw=4 ts=4 et fileencoding=utf-8:
 
+# you need to have pyosd and unidecode (pip) installed
 import datetime
 import os
 import pyosd
 import subprocess as proc
 import time
+from unidecode import unidecode
 
 
 class SysMon:
@@ -20,20 +22,14 @@ class SysMon:
         return ('datetime',  # 'updates',
                 'nowplaying', 'cpu_usage', 'cpu_temp',
                 'mem_free', 'mem_swapped',
+                'disk_free',
                 'battery', 'extra')
 
     def __getitem__(self, attr):
         return getattr(self, attr)()
-    #'item-%s' % attr
 
     def datetime(self):
         return datetime.datetime.now().strftime('%a %d/%H:%M:%S')
-
-    #def updates(self):
-    #    print('Updates ... ?')
-    #    x = proc.check_output('su -c "dnf check-update"|wc -l', shell=True)
-    #    print('done')
-    #    return x.strip()
 
     def find_nowplay(self):
         return proc.check_output(('/usr/bin/which', 'nowplaying'))
@@ -43,6 +39,7 @@ class SysMon:
             return ''
         playing = proc.check_output(self.nowplay_cmd, shell=True)
         playing = playing.strip()
+        playing = playing.decode('utf-8')
         return playing
 
     def find_mpstat(self):
@@ -80,6 +77,18 @@ class SysMon:
             ("free -m|grep Swap|awk '{print $3}'"),
             shell=True)
         return (swap.strip())
+
+    def disk_free(self):
+        root = proc.check_output(
+            ("df -h /|tail -n1|awk '{ print $4 }'"),
+            shell=True).strip()
+        home = proc.check_output(
+            ("df -h /home|tail -n1|awk '{ print $4 }'"),
+            shell=True).strip()
+        if root == home:
+            return '/%s' % root
+        else:
+            return '/%s ~%s' % (root, home)
 
     def battery(self):
         batteries = proc.check_output(
@@ -141,18 +150,20 @@ class XOSD_Printer:
         start = datetime.datetime.now()
         line = self.line.format(**dict(self.source))
 
-        self.osd.display(line)
-        self.osd.display(self.source.extra(), line=1)
+        self.osd.display(unidecode(line))
+        self.osd.display(unidecode(self.source.extra()), line=1)
         return datetime.datetime.now() - start
 
 
 def main(debug=False):
-    status_line = ('{nowplaying} |'
-                   ' {datetime} |'
-                   # ' {updates} |'
-                   ' {cpu_usage}% {cpu_temp}*C |'
-                   ' {mem_free} free {mem_swapped} swap'
-                   '{battery}')
+    status_line = unicode(
+        '{nowplaying} |'
+        ' {datetime} |'
+        # ' {updates} |'
+        ' {cpu_usage}% {cpu_temp}*C |'
+        ' {mem_free} free {mem_swapped} swap |'
+        ' {disk_free}'
+        '{battery}')
     mon = SysMon()
     XOSD_Printer(status_line,
                  mon,
