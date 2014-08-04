@@ -16,7 +16,7 @@ fi
 
 runcond() {
     if which $1 &> /dev/null; then
-        $1 &> /dev/null &
+        "$@" &> /dev/null &
     fi
 }
 
@@ -24,3 +24,4 @@ runcond parcellite
 runcond xosd-sysmon
 runcond qslock-auto
 runcond qsrun
+runcond compton -b
