@@ -615,10 +615,10 @@ def print_chars(characters, info=None, warn=None):
                             len(ch['guild']))
     for ch in characters:
         ch.update(props)
-        if ch['name'] in info:
+        if ch['name'] in info or ch.get('acc', None) in info:
             ch['mark'] = COLOR['BLUE']
             ch['mark_end'] = COLOR['BLACK']
-        if ch['name'] in warn:
+        if ch['name'] in warn or ch.get('acc', None) in warn:
             ch['mark'] = COLOR['YELLOW']
             ch['mark_end'] = COLOR['BLACK']
         if 'mark_end' not in ch:
