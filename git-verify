@@ -15,7 +15,8 @@
 ###
 ### Have your git repo cloned somewhere.
 ### Have remote named 'my' there.
-### Have your branch with personal changes there (default=psedlak).
+### Have your branch with personal changes there
+### (default is empty which means no 'always merge' branches).
 ###
 ### go to your repo-working-copy-dir
 ### execute:
@@ -39,8 +40,11 @@
 ###
 ### This refuses to continue if there are any modifications (index or w.copy).
 ###
-### To change how the 'your-personal-always-merged-branch' is called,
-### export GIT_VERIFY_ALWAYS_MERGE.
+### To change how the 'your-personal-always-merged-branch(es)' are called,
+### export GIT_VERIFY_ALWAYS_MERGE="custom1 custom2...".
+### Be aware that those will always be rebased on top of master
+### before merging, and merged first before the rest of branches
+### specified on cli (or via --all).
 ###
 ### You can specify different name for the 'verify' branch,
 ### using -b <name>, it has to be provided before the name of
@@ -55,8 +59,9 @@
 
 set -o errexit
 
+BASE_BR="master"
 VERIFY_BR="${GIT_VERIFY_VERIFY_BRANCH:-verify}"
-ALWAYS_MERGE="${GIT_VERIFY_ALWAYS_MERGE:-psedlak}"
+ALWAYS_MERGE="${GIT_VERIFY_ALWAYS_MERGE}"
 
 list_merged() {
     git log $VERIFY_BR --merges \
@@ -108,6 +113,13 @@ else
     for BR in $ALWAYS_MERGE; do
         echo "* $BR"
         test_branch "$BR"
+        git checkout "$BR"
+        git rebase $BASE_BR
+        if [[ $? != 0 ]]; then
+            echo "Personal branch $BR conflicts with $BASE_BR!"
+            git rebase --abort
+            exit 1
+        fi
     done
     echo $BRANCHES
     for BR in $BRANCHES; do
@@ -123,7 +135,7 @@ else
         exit 1
     fi
 
-    git checkout master
+    git checkout $BASE_BR
     git branch -D $VERIFY_BR || :
     git checkout -b $VERIFY_BR
 
