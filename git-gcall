@@ -1,0 +1,21 @@
+#!/bin/bash
+
+just_help=0
+if [[ "$1" = "help" || "$1" = "-h" || "$1" == "--help" ]]; then
+    just_help=1
+fi
+
+echo -e "Going to find all .git dirs under \033[01;31m $(pwd)\033[00m"
+echo "and issue 'git gc' in them ..."
+
+[[ "$just_help" = 1 ]] && exit 0
+
+echo -n "... in 3 seconds "
+sleep 1
+echo -n "."
+sleep 1
+echo -n "."
+sleep 1
+echo ". go"
+
+find . -type d -name .git -exec git -C '{}' gc \;
