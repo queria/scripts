@@ -3,6 +3,9 @@
 if [[ "$1" == "--help" ]]; then
     echo "Usage:"
     echo " $0 eth0 192.168.0.88"
+    echo ""
+    echo "This will assign given ip on the ifc"
+    echo "and try to scan whole C subnet (/24)"
     exit 0
 fi
 
