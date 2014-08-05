@@ -88,8 +88,8 @@ def print_help():
     ---
     default: dream
     dream:
-        info: [LiuKan, Barr]
-        warn: [Explosion, Anathema]
+        info: [Chiana, Someone, Like, Mendri, Or, eRoo]
+        warn: [*admin*, Explosion]
         acc: <---YOUR-LOGIN--->
         pass: <---YOUR-PASSWORD--->
         res_stats:
@@ -268,12 +268,22 @@ class RemoteServer(object):
                 if k in ['reset', 'level']:
                     v = int(v)
                 ch[k] = v
-            if 'class' in ch:
-                ch['class_mark'] = tr(CLASS_MARKS, ch['class'])
-            ch.setdefault('guild', '')
-            ch.setdefault('class', '')
-            ch.setdefault('class_mark', '')
+            self.fill_char_info(ch)
         return chars
+
+    def fill_char_info(self, char, admin=False):
+        char.setdefault('acc', '*admin*' if admin else '')
+        if 'class' in char:
+            char['class_mark'] = tr(CLASS_MARKS, char['class'])
+        char.setdefault('guild', '')
+        char.setdefault('class', '')
+        char.setdefault('class_mark', '')
+        char.setdefault('level', 400 if admin else 1)
+        char.setdefault('reset', 999 if admin else 0)
+        char.setdefault('exp_speed', 0)
+        char.setdefault('eta', 0)
+        char.setdefault('map', '')
+        char.setdefault('time', '')
 
     def check_err(self, reply):
         reply.encoding = 'UTF-8'
@@ -469,6 +479,31 @@ class DreamMuServer(RemoteServer):
             source, acc_char_pattern)
 
         return chars
+
+    def fetch_admins(self):
+        self.no_auth = True
+        reply = self.get('page_id=dreammu_team')
+        return self.parse_admins(reply.text)
+
+    def parse_admins(self, source):
+        admins = []
+        patt = re.compile((
+            '<tr>'
+            '<td{attrs}><span{attrs}>(?P<role>{in_tag})</span></td>'
+            '<td{attrs}><span{attrs}> <b>(?P<name>{in_tag})</b> </span></td>'
+            '<td{attrs}>(?P<email>{in_tag})</td>'
+            '<td{attrs}><span{attrs}>(?P<status>{in_tag})</span></td>'
+            '</tr>').format(**REG_HELPERS))
+        for admin in patt.finditer(source):
+            admin_obj = {
+                'name': admin.group('name'),
+                'role': admin.group('role'),
+                'email': admin.group('email'),
+                'online': ('ONLINE' == admin.group('status').strip),
+            }
+            self.fill_char_info(admin_obj, admin=True)
+            admins.append(admin_obj)
+        return admins
 
     def acc_char_list(self, refresh=False):
         acc_chars = {}
@@ -735,9 +770,14 @@ def list_online(srv, args):
     table = srv.grep_table(page)
     chars = srv.parse_charinfo(table)
     compare_last(srv, chars, lastchanged)
+    admins = srv.fetch_admins()
     print_statusline()
 
     add_char_acc_info(srv, chars)
+
+    for admin in admins:
+        if admin['online']:
+            chars.append(admin)
 
     sort_by = ['name']
     if ',' in args['sort']:
