@@ -285,6 +285,11 @@ class RemoteServer(object):
             LOG.debug(webpage_err.group(0))
             LOG.debug(type(webpage_err.group(0)))
 
+            if len(webpage_err.groups()) < 2:
+                LOG.warn('Webpage error without message?: %s\n%s',
+                         webpage_err.group(0), reply.text)
+                return
+
             LOG.debug('G1')
             LOG.debug(webpage_err.group(1))
             LOG.debug(type(webpage_err.group(1)))
@@ -349,8 +354,10 @@ class DreamMuServer(RemoteServer):
     def reset(self, char_key):
         char = self.char(char_key)
         LOG.debug('Going to reset char %s ...' % char['name'])
-        self.get('page_id=user_cp&panel=reset_character&rid=%d'
-                 % self._rid(char))
+        vip_suff = '_vip' if self.cfg['vip'] else ''
+        url = ('page_id=user_cp&panel=reset_character%s&rid=%d'
+               % (vip_suff, self._rid(char)))
+        self.get(url)
         LOG.info('Level reset done for character %s.' % char['name'])
 
     def add_stats(self, char_key):
@@ -506,7 +513,7 @@ class DreamMuServer(RemoteServer):
     def parse_errmsg(self, source):
         return re.compile(
             ('<div class="msg_error"{attrs}>'
-             '(?P<msg>{in_tag})'
+             '(?P<msg>(?!Typ VIP{in_tag}){in_tag})'
              '</div>').format(**REG_HELPERS)).search(source)
 
 
