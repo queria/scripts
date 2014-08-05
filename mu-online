@@ -32,9 +32,14 @@ def print_help():
 
      --help:              show this help and quit
 
-     --reset <charid>:    reset characters level and distribute stat points,
+     --reset <charid>:    reset characters level AND distribute stat points,
                           based on what is in config file,
                           dict key in config has to match given <charid>
+
+     --addstats <charid>: distribute stat points based on config file,
+                          always adds the points defined there, regardless
+                          what the current character stats are,
+                          same as --reset without doing reset first
 
      --acc <search_term>: search for characters and accounts containing
                           the search_term in their name (case insensitive),
@@ -775,7 +780,18 @@ def reset_char(srv, args):
 
     print_statusline()
     srv.reset(char_key)
+    add_stats(srv, args, char_key)
+
+
+def add_stats(srv, args, char_key=None):
+    if char_key is None:
+        char_key = args['addstats']
+
     srv.add_stats(char_key)
+    print_char_info(srv, char_key)
+
+
+def print_char_info(srv, char_key):
     info = srv.char_info(char_key)
 
     if not info:
@@ -846,7 +862,7 @@ def main():
         print('debugging')
     if 'help' in sys.argv or '--help' in sys.argv:
         print_help()
-    args = parse_args(sys.argv, ['sort', 'reset', 'srv', 'acc'])
+    args = parse_args(sys.argv, ['sort', 'reset', 'addstats', 'srv', 'acc'])
     args.setdefault('fresh', False)
     args.setdefault('sort', 'name')
 
@@ -859,8 +875,12 @@ def main():
     if 'acc' in args:
         acc_info(srv, args)
         return
+
     if 'reset' in args:
         reset_char(srv, args)
+    elif 'addstats' in args:
+        add_stats(srv, args)
+
     if 'auto' in args:
         wait_min = 3
         wait_sec = wait_min * 60
