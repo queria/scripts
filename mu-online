@@ -485,7 +485,7 @@ class DreamMuServer(RemoteServer):
                 'name': admin.group('name'),
                 'role': admin.group('role'),
                 'email': admin.group('email'),
-                'online': ('ONLINE' == admin.group('status').strip),
+                'online': ('online' == admin.group('status').strip().lower()),
             }
             self.fill_char_info(admin_obj, admin=True)
             admins.append(admin_obj)
@@ -641,6 +641,9 @@ def print_chars(characters, info=None, warn=None):
         'mark': '',
     }
 
+    info = [info_str.lower() for info_str in info]
+    warn = [warn_str.lower() for warn_str in warn]
+
     for ch in characters:
         props['ln_n'] = max(props['ln_n'],
                             len(ch['name']))
@@ -648,10 +651,13 @@ def print_chars(characters, info=None, warn=None):
                             len(ch['guild']))
     for ch in characters:
         ch.update(props)
-        if ch['name'] in info or ch.get('acc', None) in info:
+
+        name = ch['name'].lower()
+        acc = ch.get('acc', '').lower()
+        if name in info or acc in info:
             ch['mark'] = COLOR['BLUE']
             ch['mark_end'] = COLOR['BLACK']
-        if ch['name'] in warn or ch.get('acc', None) in warn:
+        if name in warn or acc in warn:
             ch['mark'] = COLOR['YELLOW']
             ch['mark_end'] = COLOR['BLACK']
         if 'mark_end' not in ch:
