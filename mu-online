@@ -289,27 +289,13 @@ class RemoteServer(object):
         reply.encoding = 'UTF-8'
         webpage_err = self.parse_errmsg(reply.text)
         if webpage_err is not None:
-            # big debug ....
-            LOG.debug(reply.encoding)
-            LOG.debug(type(reply.text))
-            LOG.debug(webpage_err.group(0))
-            LOG.debug(type(webpage_err.group(0)))
+            found = webpage_err.groupdict()
+            if 'msg' not in found:
+                LOG.warning('Servery reply: \n%s', reply.text)
+                raise ValueError('Unrecognized server error in reply.')
 
-            if len(webpage_err.groups()) < 2:
-                LOG.warn('Webpage error without message?: %s\n%s',
-                         webpage_err.group(0), reply.text)
-                return
-
-            LOG.debug('G1')
-            LOG.debug(webpage_err.group(1))
-            LOG.debug(type(webpage_err.group(1)))
-
-            LOG.debug('G<msg>')
-            LOG.debug(webpage_err.group('msg'))
-            LOG.debug(type(webpage_err.group('msg')))
-
-            LOG.debug(ValueError(webpage_err.group('msg').encode('utf-8')))
-            raise ValueError(webpage_err.group('msg').encode('utf-8'))
+            LOG.debug(found['msg'].encode('utf-8'))
+            raise ValueError(found['msg'].encode('utf-8'))
 
     def parse_errmsg(self, source):
         pass
@@ -844,15 +830,7 @@ def print_char_info(srv, char_key):
     if not info:
         LOG.error('Failed to get char lvl/res/zen info!')
     else:
-        print('\n%s:  %3d/%3d    %s zen'
-              % (info['name'],
-                 int(info.group(1)),
-                 int(info.group(3)),
-                 info.group(2)))
-    # login_sess = login(cfg)
-    # do_reset(login_sess, cfg, char)
-    # add_stats(login_sess, cfg, char)
-    # char_info(login_sess, cfg, char)
+        print('\n{name}:  {level} /{reset} {zen} zen\n'.format(**info))
 
 
 def load_cfg(path='~/.muonline.yaml'):
