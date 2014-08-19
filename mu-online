@@ -198,10 +198,14 @@ COLOR = {
 class RemoteServer(object):
     SID = 'default'
     URL = None
+    RESET_LEVEL = 400
+    RESET_LEVEL_VIP = 370
 
     def __init__(self, cfg):
         super(RemoteServer, self).__init__()
         self.cfg = cfg
+        self.own_chars = [char['name'] for char
+                          in self.cfg.get('res_stats', {}).values()]
         self.no_auth = False
         self.__session = None
 
@@ -244,6 +248,12 @@ class RemoteServer(object):
 
     def char(self, char_key):
         return self.cfg['res_stats'][char_key]
+
+    def get_reset_level(self, char_name):
+        if self.cfg['vip']:
+            if char_name in self.own_chars:
+                return self.RESET_LEVEL_VIP
+        return self.RESET_LEVEL
 
     def grep_table(self, source, start_reg, stop_reg):
         lines = source.split('\n')
@@ -745,7 +755,8 @@ def compare_last(srv, chars, lastchanged=None):
             lchar['lastchanged'] = lastchanged
         if char['exp_speed'] != 0:
             # res_lvl = 300 *
-            char['eta'] = (400 - char['level']) / char['exp_speed']
+            res_lvl = srv.get_reset_level(char['name'])
+            char['eta'] = (res_lvl - char['level']) / char['exp_speed']
         else:
             char['eta'] = 0
 
