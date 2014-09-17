@@ -342,7 +342,7 @@ class DreamMuServer(RemoteServer):
         if 'rid' in char_info:
             LOG.debug('rid %s defined in config' % char_info['rid'])
             return char_info['rid']
-        reply = self.get('page_id=user_cp&panel=reset_character')
+        reply = self.get(self.res_baseurl)
         found = re.search(('<td.*?iR_name".*?>%s</td>.*?<input'
                           ' type="button".*?onclick=".*?rid=([0-9]+)\'"')
                           % char_info['name'],
@@ -354,17 +354,19 @@ class DreamMuServer(RemoteServer):
                               ' and it was not specified in config.')
                              % char_info['name'])
 
-        LOG.debug('rid %s found' % found.group(1))
+        LOG.info('rid for %s found: %s' % (char_info, found.group(1)))
         return int(found.group(1))
 
     def reset(self, char_key):
         char = self.char(char_key)
         LOG.debug('Going to reset char %s ...' % char['name'])
-        vip_suff = '_vip' if self.cfg['vip'] else ''
-        url = ('page_id=user_cp&panel=reset_character%s&rid=%d'
-               % (vip_suff, self._rid(char)))
-        self.get(url)
+        self.get('%s&rid=%d' % (self.res_baseurl, self._rid(char)))
         LOG.info('Level reset done for character %s.' % char['name'])
+
+    @property
+    def res_baseurl(self):
+        return ('page_id=user_cp&panel=reset_character%s'
+                % ('_vip' if self.cfg['vip'] else ''))
 
     def add_stats(self, char_key):
         char = self.char(char_key)
@@ -414,7 +416,9 @@ class DreamMuServer(RemoteServer):
             'name': name,
             'level': int(found_res.group(1)),
             'reset': int(found_res.group(3)),
-            'zen': found_res.group(2)
+            'zen': int(found_res.group(2)
+                       .replace(',', '')
+                       .replace(' ', ''))
         }
 
     def grep_table(self, source):
@@ -436,7 +440,7 @@ class DreamMuServer(RemoteServer):
                  '\W*<td{attrs}>(?P<guild>{in_tag})</td>'
                  '\W*<td{attrs}>(?P<map>{in_tag})</td>'
                  '\W*<td{attrs}>(?P<time>{in_tag})</td>'
-                 '\W*<td{attrs}><img {attrs}></td>'
+                 '\W*<td{attrs}>(<img {attrs}>)?</td>'
                  '\W*</tr>').format(**REG_HELPERS)))
 
     def parse_char_acc_info(self, source):
@@ -609,7 +613,7 @@ class DaemonicServer(RemoteServer):
             'name': '',
             'level': 0,
             'reset': 0,
-            'zen': '0,-'
+            'zen': 0
         }
 
 
@@ -766,6 +770,26 @@ def compare_last(srv, chars, lastchanged=None):
     return chars
 
 
+def add_admins_to_char_list(chars, admins, online_only=True):
+    if online_only:
+        admins = [admin for admin in admins if admin['online']]
+
+    if admins:
+        name_to_idx = dict((
+            (char['name'], idx)
+            for idx, char
+            in enumerate(chars)))
+        for admin in admins:
+            idx = name_to_idx.get(admin['name'], None)
+            if idx is not None:
+                # mostly admins/gms ... don't have
+                # their account visible online
+                # and we have warn marker on *admin* acc by default
+                chars[idx]['acc'] = '*admin*'
+            else:
+                chars.append(admin)
+
+
 def list_online(srv, args):
     (page, lastchanged) = fetch_page(
         srv.online_url(),
@@ -778,9 +802,7 @@ def list_online(srv, args):
 
     add_char_acc_info(srv, chars)
 
-    for admin in admins:
-        if admin['online']:
-            chars.append(admin)
+    add_admins_to_char_list(chars, admins)
 
     sort_by = ['name']
     if ',' in args['sort']:
@@ -829,8 +851,12 @@ def reset_char(srv, args):
     # char = srv.cfg['res_stats'][char_key]
 
     print_statusline()
+    info_before = print_char_info(srv, char_key)
     srv.reset(char_key)
     add_stats(srv, args, char_key)
+    info_after = print_char_info(srv, char_key)
+    print('Cost was %s zen.' %
+          format_zen(info_before['zen'] - info_after['zen']))
 
 
 def add_stats(srv, args, char_key=None):
@@ -838,7 +864,6 @@ def add_stats(srv, args, char_key=None):
         char_key = args['addstats']
 
     srv.add_stats(char_key)
-    print_char_info(srv, char_key)
 
 
 def print_char_info(srv, char_key):
@@ -847,7 +872,10 @@ def print_char_info(srv, char_key):
     if not info:
         LOG.error('Failed to get char lvl/res/zen info!')
     else:
-        print('\n{name}:  {level} /{reset} {zen} zen\n'.format(**info))
+        _info = info.copy()
+        _info['zen'] = format_zen(_info['zen'])
+        print('\n{name}:  {level} /{reset} {zen} zen\n'.format(**_info))
+    return info
 
 
 def load_cfg(path='~/.muonline.yaml'):
@@ -869,6 +897,10 @@ def load_cfg(path='~/.muonline.yaml'):
         #     srv[field] = re.compile(srv[field].format(**REG_HELPERS))
 
     return config
+
+
+def format_zen(zen):
+    return '{0:,d}'.format(zen)
 
 
 def parse_args(argv, with_val):
