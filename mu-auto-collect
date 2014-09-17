@@ -1,0 +1,20 @@
+#!/bin/bash
+DELAY=0.4
+if [[ "$1" = "fast" ]]; then
+    DELAY=${2:-0.1}
+fi
+CNT=0
+PAD="----------"
+echo -ne "$PAD\r"
+while true; do
+    if [[ $CNT = 10 ]]; then
+        CNT=0
+        echo -ne "\r$PAD\r"
+    fi
+    xdotool search --limit 1 --name Wine key space
+    echo -n "."
+    CNT=$(($CNT + 1))
+    #key space key space key space
+    sleep $DELAY;
+done
+
