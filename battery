@@ -1,5 +1,9 @@
 #!/bin/sh
 
+SHOWTOTAL=$([[ "${1:-}" == "--total" ]] && echo 1 || echo 2)
+TOTAL=0
+DELIM=" ~ "
+
 for STATDIR in /sys/class/power_supply/*;
 do
 	[ $(cat ${STATDIR}/type) == "Battery" ] || continue;
@@ -20,17 +24,24 @@ do
     [[ -z "$POWER_SUPPLY_CHARGE_FULL" ]] \
         && POWER_SUPPLY_CHARGE_FULL="$POWER_SUPPLY_ENERGY_FULL"
 
-	DELIM=" ~ "
+	PERC=$(echo "scale=2; ${POWER_SUPPLY_CHARGE_NOW} / (${POWER_SUPPLY_CHARGE_FULL}/100)" | bc)
+    TOTAL=$(echo "scale=2; ${TOTAL} + ${PERC}" | bc)
+
+    [[ "$SHOWTOTAL" == "1" ]] && continue;
+
 	echo -n "${POWER_SUPPLY_NAME}"
 	echo -n "${DELIM}"
 	echo -n "${POWER_SUPPLY_MODEL_NAME} ${POWER_SUPPLY_TECHNOLOGY} ${POWER_SUPPLY_TYPE}"
 	echo -n "${DELIM}"
-	PERC=$(echo "scale=2; ${POWER_SUPPLY_CHARGE_NOW} / (${POWER_SUPPLY_CHARGE_FULL}/100)" | bc)
 	echo -n "${PERC}%"
 	echo -n "${DELIM}"
 	echo -n "${POWER_SUPPLY_STATUS}"
 	echo ""
 done
+
+if [[ "$SHOWTOTAL" == "1" ]]; then
+    echo "scale=0; ${TOTAL} / 1" | bc
+fi
 
 #CURR=`grep "remaining" /proc/acpi/battery/C1BE/state | sed "s/^[^0-9]*\([0-9]*\).*$/\1/"`
 #MAX=`grep "last" /proc/acpi/battery/C1BE/info | sed "s/^[^0-9]*\([0-9]*\).*$/\1/"`

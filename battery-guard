@@ -1,0 +1,18 @@
+#!/bin/bash
+
+BAT="$(which battery)"
+
+if [[ -z "$BAT" ]]; then
+    BAT="$(dirname $(readlink -f "$0"))/battery"
+fi
+
+if [[ ! -x "$BAT" ]]; then
+    wall <<<"battery-guard could find battery script!"
+fi
+
+TOTAL=$($BAT --total)
+
+if [[ $TOTAL -lt 4 ]]; then
+    wall <<<"battery-guard: suspending due to very low power!"
+    sudo pm-suspend
+fi
