@@ -1,0 +1,10 @@
+#!/bin/bash
+
+for f in $(ls -1d ~/.wine*); do
+    f=$(readlink -f $f);
+    echo "upgrading $f";
+    echo exit | WINEPREFIX=$f wine cmd &
+done
+wait
+echo ""
+echo "done"
