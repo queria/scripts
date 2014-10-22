@@ -1,0 +1,3 @@
+#!/bin/sh
+
+(echo -n "Flake8 check: "; flake8 && echo "OK") >&2
