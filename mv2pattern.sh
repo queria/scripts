@@ -26,6 +26,7 @@ usage() {
     echo "--list ... print known Pattern-IDs"
     echo "--pretend ... only print what would be done, don't realy move files"
     echo "--inplace ... apply pattern for renaming, but use only basename from _PREFIX (ignore path)"
+    echo "--flat ... use flat numbering - when there is just one number expected in file name"
     echo ""
     echo "In the mv-patterns you can use \"%suff\" in the suffix part."
     echo "Which will be replaced with original suffix (after last dot) of file."
@@ -39,6 +40,7 @@ usage() {
 
 PRETEND="no"
 INPLACE="no"
+FLATNUM="no"
 OPTS=()
 for OPT in "$@"; do
     if [[ "x$OPT" = "x--list" ]]; then
@@ -50,6 +52,9 @@ for OPT in "$@"; do
     elif [[ "x$OPT" = "x--inplace" ]]; then
         INPLACE="yes"
         echo "[ renaming in place ]"
+    elif [[ "x$OPT" = "x--flat" ]]; then
+        FLATNUM="yes"
+        echo "[ using flat (no series) numbering  ]"
     else
         OPTS=("${OPTS[@]}" "$OPT")
     fi
@@ -62,6 +67,7 @@ OPTS=("${OPTS[@]:1}")
 source "$CFGF"
 PREFIX="$(eval echo "\${${PATT_ID}_PREFIX}")"
 SUFFIX="$(eval echo "\${${PATT_ID}_SUFFIX}")"
+FLATNUM_CFG="$(eval echo "\${${PATT_ID}_FLATNUM}")"
 [[ -z "$SUFFIX" ]] && SUFFIX="%suff"
 shift
 
@@ -75,6 +81,7 @@ if [[ "$INPLACE" = "yes" ]]; then
 fi
 
 
+[[ "$FLATNUM_CFG" = "yes" ]] && FLATNUM="yes"
 
 if [[ $# = 0 ]]; then
     echo "No file specified!"
@@ -90,6 +97,9 @@ for FILE in "${OPTS[@]}"; do
     suff="${SUFFIX/\%suff/${orig_suff}}"
 
     seq_ident=$(basename "$FILE" | perl -ne '/(s)?(\d+)(?(1)(?(1)[- ]*e)|x)(\d+)/i && printf("S%02dE%02d", $2, $3);')
+    if [[ "$FLATNUM" = "yes" ]]; then
+        seq_ident=$(basename "$FILE" | perl -ne '/(\d+)[._ -]*(.*)/i && printf("%02d-%s", $1, $2);')
+    fi
 
     TARGET="${PREFIX}${seq_ident:?"Sequence identifier is empty, auto-detection failed?!"}${suff}"
 
