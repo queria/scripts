@@ -1,0 +1,13 @@
+#!/bin/bash
+
+amixer -q sset Master,0 on 60%
+
+if [[ -z "$1" || "$1" = "on" ]]; then
+    amixer -q sset -c0 Headphone,0 on 90%
+    osd_cat -d2 <<< "Headpones"
+else
+    amixer -q sset -c0 Headphone,0 off
+    amixer -q sset Master,0 on 30%
+    amixer -q sset -c0 Speaker,0 on 40%
+    osd_cat -d2 <<< "Speakers"
+fi
