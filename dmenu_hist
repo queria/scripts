@@ -2,7 +2,18 @@
 
 #set -x
 
-CACHE="$HOME/.cache/dmenu_hist"
+OURDIR="$HOME/.cache/dmenu_hist"
+if [[ ! -d "$OURDIR" ]]; then
+    if [[ -f "$OURDIR" ]]; then
+        mv "$OURDIR" "$OURDIR-bup"
+        mkdir -p "$OURDIR"
+        mv "$OURDIR-bup" "$OURDIR/history"
+    else
+        mkdir -p "$OURDIR"
+    fi
+fi
+HIST="$OURDIR/history"
+CACHE="$OURDIR/cache"
 
 
 ##### BASIC help/args section #####
@@ -16,8 +27,10 @@ $(basename $0) [--edit]
     from folders in PATH, but prefer those already picked before,
     with last choice provided as first option.
 
-    --edit   open cache file [$CACHE] in editor
+    --edit   open history file [$HIST] in editor
 
+    any other args will be passed directly to dmenu call
+    for possibilities see dmenu(1).
 EOF
     exit
 fi
@@ -27,34 +40,47 @@ if [[ "$1" == "--edit" ]]; then
         echo "You did not set $$EDITOR .. using vi"
         EDITOR=/usr/bin/vi
     fi
-    exec $EDITOR $CACHE
+    exec $EDITOR $HIST
 fi
 
 
 ##### FIND EXECUTABLES IN PATH #####
 
-TMPF="$(mktemp --suffix qdmenu)"
-trap "rm $TMPF" EXIT
-
-touch "$CACHE"
-
-( IFS=:
+## get the modification time of latest changed
+## directory in path
+LASTCHANGE=$(( IFS=:
 for p in $PATH; do
-    find -L $p -maxdepth 1 -type f -executable -printf "%f\n" >> $TMPF 2> /dev/null
+    stat --format "%Z" $p
 done
-)
+) | sort -r| head -n1)
+
+## if we have cache and it is older, remove it
+[[ -f "$CACHE" && $LASTCHANGE -gt $(stat --format "%Z" $CACHE) ]] && rm $CACHE
+
+if [[ ! -f "$CACHE" ]]; then
+    # if we dont have cache, lets create one
+    CACHE_TMP="$(mktemp --suffix qdmenu)"
+    trap "rm $CACHE_TMP" EXIT
+    ( IFS=:
+    for p in $PATH; do
+        find -L $p -maxdepth 1 -type f -executable -printf "%f\n" >> $CACHE_TMP 2> /dev/null
+    done
+    )
+    sort -u $CACHE_TMP > $CACHE
+fi
 
 
 ##### CALL DMENU TO GET USER CHOICE #####
 
-CHOICE=$((tac $CACHE; grep -v -f $CACHE $TMPF | sort -u) | dmenu)
+touch "$HIST"
+CHOICE=$((tac $HIST; grep -v -f $HIST $CACHE) | dmenu "$@")
 [[ -z "$CHOICE" ]] && exit
 
 
 ##### SAVE USER CHOICE IN HISTORY #####
 
-sed -i "/^$CHOICE$/d" $CACHE
-echo $CHOICE >> $CACHE
+sed -i "/^$CHOICE$/d" $HIST
+echo $CHOICE >> $HIST
 
 
 ##### EXECUTE USER CHOICE #####
