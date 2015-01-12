@@ -1,0 +1,61 @@
+#!/bin/bash
+
+#set -x
+
+CACHE="$HOME/.cache/dmenu_hist"
+
+
+##### BASIC help/args section #####
+
+if [[ "$1" == "--help" ]]; then
+    cat <<EOF
+
+$(basename $0) [--edit]
+
+    Launch dmenu with choices built from all executables
+    from folders in PATH, but prefer those already picked before,
+    with last choice provided as first option.
+
+    --edit   open cache file [$CACHE] in editor
+
+EOF
+    exit
+fi
+
+if [[ "$1" == "--edit" ]]; then
+    if [[ -z "$EDITOR" ]]; then
+        echo "You did not set $$EDITOR .. using vi"
+        EDITOR=/usr/bin/vi
+    fi
+    exec $EDITOR $CACHE
+fi
+
+
+##### FIND EXECUTABLES IN PATH #####
+
+TMPF="$(mktemp --suffix qdmenu)"
+trap "rm $TMPF" EXIT
+
+touch "$CACHE"
+
+( IFS=:
+for p in $PATH; do
+    find -L $p -maxdepth 1 -type f -executable -printf "%f\n" >> $TMPF &> /dev/null
+done
+)
+
+
+##### CALL DMENU TO GET USER CHOICE #####
+
+CHOICE=$((tac $CACHE; grep -v -f $CACHE $TMPF) | dmenu)
+[[ -z "$CHOICE" ]] && exit
+
+
+##### SAVE USER CHOICE IN HISTORY #####
+
+sed -i "/^$CHOICE$/d" $CACHE
+echo $CHOICE >> $CACHE
+
+
+##### EXECUTE USER CHOICE #####
+$CHOICE &
