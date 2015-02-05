@@ -1,0 +1,19 @@
+#!/bin/bash
+
+#set -x
+
+TYPE=$1
+
+case "$TYPE" in
+    "space")
+        while true; do
+            xdotool search --limit 1 --name Wine key space;
+            sleep 0.4;
+        done
+        ;;
+    "click"|*)
+        while true; do
+            xdotool search --name "Firefox" click --repeat 3000 --delay 24 1
+        done
+    ;;
+esac
