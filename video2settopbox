@@ -45,15 +45,16 @@ cd "$TMP" || quit $EXIT_CD_TMP "Unable to cd to tmp dir $TMP"
 
 for INPUT in "${INPUTS[@]}"; do
     info "Converting $INPUT"
-    OUTPUT="${INPUT%.*}.avi"
+    OUTPUT="${INPUT%.*}-conv.avi"
     if [[ -f "$OUTPUT" ]]; then
         NUM=1
         while [[ -f "$OUTPUT" ]]; do
-            OUTPUT="${INPUT%.*}-${NUM}.avi"
+            OUTPUT="${INPUT%.*}-conv-${NUM}.avi"
             NUM="$(( $NUM + 1 ))"
         done
         warn "Output file already exists! Going to save as $OUTPUT instead."
     fi
+    info "Using output file $OUTPUT."
 
     USE_LAVC=${LAVC:-0}
     USE_THREADS=${THREADS:-0}
@@ -70,7 +71,7 @@ for INPUT in "${INPUTS[@]}"; do
         OPTS="$OPTS -ovc lavc"
         OPTS="$OPTS -lavfopts format=avi"
         OPTS="$OPTS -lavcopts"
-        OPTS="${OPTS}acodec=ac3:vcodec=mpeg2video"
+        OPTS="${OPTS} acodec=ac3:vcodec=mpeg2video"
         OPTS="${OPTS}${THREADS}"
         OPTS_PASS1="${OPTS}:vpass=1"
         OPTS_PASS2="${OPTS}:mbd=2:trell:vpass=2"
