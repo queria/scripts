@@ -1,5 +1,10 @@
 #!/bin/bash
 
+SAFEONLY=false
+if [[ "$1" = "--safe" ]]; then
+    SAFEONLY=true
+    shift
+fi
 # use configuration given as argument
 CONFIG=$1
 
@@ -20,36 +25,42 @@ if [[ -z "$CONFIG" ]]; then
     #echo "Autodetected monitor layout: $CONFIG"
 fi
 
+#DEFAULT="LVDS-0"
+DEFAULT="${DEFAULT:-$(xrandr |sed -rn 's/(.*) connected .*/\1/p'|head -n1)}"
+
 # first everything off to clean possible manual changes,
 
 # also workarounds issue with razor-qt WM, which may calculate positions
 # incorrectly after display is switched
 # ~ https://github.com/Razor-qt/razor-qt/issues/612
 
-for DISP in $(xrandr |sed -n '/connect/s/ \(dis\)\?connected.*$//p'); do
-    xrandr --output $DISP --off
-done
+if ! $SAFEONLY; then
+    for DISP in $(xrandr |sed -n '/connect/s/ \(dis\)\?connected.*$//p'); do
+        [[ "$DISP" = "$DEFAULT" && $SAFEONLY ]] && continue
+        xrandr --output $DISP --off
+    done
+fi
 
 # always switch back to default
-xrandr --output LVDS1 --auto --rotate normal --reflect normal --primary
+xrandr --output $DEFAULT --auto --rotate normal --reflect normal --primary
 
 case $CONFIG in
     work)
-        xrandr --output HDMI3 --auto --above LVDS1 --output LVDS1 --auto --primary
+        xrandr --output HDMI3 --auto --above $DEFAULT --output $DEFAULT --auto --primary
         ;;
     present)
-        xrandr --output VGA1 --auto --leftof LVDS1 --output LVDS1 --auto --primary
+        xrandr --output VGA1 --auto --leftof $DEFAULT --output $DEFAULT --auto --primary
         ;;
     present-mirror)
-        xrandr --output VGA1 --same-as LVDS1
-    #    xrandr --output VGA1 --off --output LVDS1 --auto --rotate normal --reflect normal --primary
+        xrandr --output VGA1 --same-as $DEFAULT
+    #    xrandr --output VGA1 --off --output $DEFAULT --auto --rotate normal --reflect normal --primary
         ;;
     small)
-        xrandr --output LVDS1 --scale 0.67x0.67
+        xrandr --output $DEFAULT --scale 0.67x0.67
         ;;
     default)
         # use just display of nb
-        #xrandr --output HDMI3 --off --output LVDS1 --auto --rotate normal --reflect normal --primary
+        #xrandr --output HDMI3 --off --output $DEFAULT --auto --rotate normal --reflect normal --primary
         # do nothing as we should be in the default now
         ;;
     -h|--help|help|*)
