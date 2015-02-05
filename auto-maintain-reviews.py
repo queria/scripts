@@ -29,6 +29,9 @@ import yaml
 # when <debug_change> contains change number (short int), my_open will
 # contain only this change, and should_be_rebased will
 # filter any other change out too
+#
+# aside --debug, --force may be used to skip few checks
+# (negative-review, touched-lately, depends-on)
 
 
 config = {
@@ -152,27 +155,31 @@ def has_negative_cr(change):
     return False
 
 
-def should_be_rebased(change):
+def should_be_rebased(change, force=False):
     if config['debug_change']:
         # info already in 'change' and config
         if str(change.get('number', '')) != str(config['debug_change']):
             debug('- is NOT THE DEBUG change')
             return False
 
-    if has_negative_cr(change):
+    if not force and has_negative_cr(change):
         # info already in 'change'
         debug('- has negative review')
         return False
 
-    if depends_on_any(change, all_open):
+    if not force and depends_on_any(change, all_open):
         # info already in 'change' and 'all_open'
         debug('- has open dependency')
         return False
 
-    if touched_lately(change):
+    if not force and touched_lately(change):
         # info already in 'change'
         debug('- was touched lately')
         return False
+
+    if force:
+        debug('- forced so negative_cr, depends and touched_lately'
+              ' checks were skipped')
 
     if is_mergeable(change):
         # requires additional ssh query, so last
@@ -198,7 +205,7 @@ if __name__ == '__main__':
 
     for change in my_open:
         debug('[%s] %s' % (change['url'], change['subject']))
-        if should_be_rebased(change):
+        if should_be_rebased(change, '--force' in sys.argv):
             debug('- should be rebased')
             rebase_change(change)
         if (config['the_reviewer']
