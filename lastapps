@@ -1,0 +1,5 @@
+#!/bin/bash
+
+sed -nr '/^[^#]/s/^([^=\ \|;]+).*/\1/p' "$HOME/.bash_history" | \
+grep -vE '^(cat|cd|cp|grep|ls|ll|git|vim|pwd|mkdir|rm|ssh|file|less|curl)' | \
+uniq
