@@ -1,6 +1,18 @@
 #!/bin/bash
 
+PULSE=true
+
+OSDOPT=""
+OSDOPT="${OSDOPT} -p bottom"
+OSDOPT="${OSDOPT} -A center"
+OSDOPT="${OSDOPT} -o 60"
+OSDOPT="${OSDOPT} -d 1"
+OSDOPT="${OSDOPT} -c white"
+OSDOPT="${OSDOPT} -O 4"
+OSDOPT="${OSDOPT} -b percentage"
+
 OFF=false
+# FIXME: prepare for pulseaudio
 if amixer sget Master | grep off;
 then
 	OFF=true
@@ -16,12 +28,13 @@ case "x$1" in
 		exit 1
 		;;
 	"xup")
-		amixer sset Master,0 5+ > /dev/null
+        ($PULSE && pactl -- set-sink-volume 0 +5% || amixer sset Master,0 5%+ )> /dev/null
 		;;
 	"xdown")
-		amixer sset Master,0 5- > /dev/null
+        ($PULSE && pactl -- set-sink-volume 0 -5% || amixer sset Master,0 5%- )> /dev/null
 		;;
 	"xtoggle")
+        # FIXME: prepare for pulseaudio
 		if $OFF; then
 			amixer sset Master,0 on > /dev/null
 			amixer sset PCM,0 on > /dev/null
@@ -31,21 +44,22 @@ case "x$1" in
 		;;
 esac
 
-VOLPERC=$(amixer sget Master|grep "%"|head -n 1| sed "s/.*\[\([0-9]\+\)%.*/\\1/")
+if $PULSE; then
+    VOLPERC=$(pactl list|grep Volume|head -n1|sed -r 's/.* ([0-9]+)% .*/\1/')
+else
+    VOLPERC=$(amixer sget Master|grep "%"|head -n 1| sed "s/.*\[\([0-9]\+\)%.*/\\1/")
+fi
+
 if amixer sget Master | grep off;
 then
 	VOLPERC=0
 fi
 
-echo $VOLPERC
+#echo $VOLPERC
 
-OSDOPT=""
-OSDOPT="${OSDOPT} -p bottom"
-OSDOPT="${OSDOPT} -A center"
-OSDOPT="${OSDOPT} -o 60"
-OSDOPT="${OSDOPT} -d 1"
-OSDOPT="${OSDOPT} -c white"
-OSDOPT="${OSDOPT} -s 1"
-OSDOPT="${OSDOPT} -b percentage"
-osd_cat ${OSDOPT} -P ${VOLPERC}
+#if [[ $VOLPERC -gt 100 ]]; then
+osd_cat ${OSDOPT} -T "$VOLPERC %" -P 100
+#else
+#    osd_cat ${OSDOPT} -P ${VOLPERC}
+#fi
 
