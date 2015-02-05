@@ -1,5 +1,12 @@
 #!/bin/bash
+UNLOCK=false
+if [[ "$1" = "-u" ]]; then UNLOCK=true; shift; fi
+
+echo "$(date): qslock: DISP=$DISPLAY UNLOCK=$UNLOCK" >> ~/qslock.log
+tail -n1 ~/qslock.log > ~/osd-notes
+
 if [[ -z "$DISPLAY" ]]; then
+    if $UNLOCK; then pkill vlock; exit; fi
     if ! which vlock > /dev/null; then
         echo "Unable to find vlock!" >&2
         exit 1
@@ -12,6 +19,11 @@ if [[ -z "$DISPLAY" ]]; then
     echo ""
     vlock --all
 else
+    if $UNLOCK; then
+        pkill i3lock;
+        xset -display :0.0 dpms force on;
+        exit;
+    fi
     if ! which i3lock > /dev/null; then
         echo "Unable to find i3lock!" >&2
         exit 1
