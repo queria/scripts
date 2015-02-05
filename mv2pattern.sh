@@ -98,7 +98,7 @@ for FILE in "${OPTS[@]}"; do
 
     seq_ident=$(basename "$FILE" | perl -ne '/(s)?(\d+)(?(1)(?(1)[- ]*e)|x)(\d+)/i && printf("S%02dE%02d", $2, $3);')
     if [[ "$FLATNUM" = "yes" ]]; then
-        seq_ident=$(basename "$FILE" | perl -ne '/(\d+)[._ -]*(.*)/i && printf("%02d-%s", $1, $2);')
+        seq_ident=$(basename "$FILE" | perl -ne '/(\d+)[._ -]*(.*)\.[^.]+$/i && printf("%02d-%s", $1, $2);')
     fi
 
     TARGET="${PREFIX}${seq_ident:?"Sequence identifier is empty, auto-detection failed?!"}${suff}"
