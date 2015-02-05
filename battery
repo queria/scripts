@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 SHOWTOTAL=$([[ "${1:-}" == "--total" ]] && echo 1 || echo 2)
 TOTAL=0
