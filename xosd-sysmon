@@ -2,10 +2,12 @@
 # vim: set sw=4 ts=4 et fileencoding=utf-8:
 
 # you need to have pyosd and unidecode (pip) installed
+from __future__ import print_function
 import datetime
 import os
 import pyosd
 import subprocess as proc
+import sys
 import time
 from unidecode import unidecode
 
@@ -119,18 +121,20 @@ class SysMon:
         except IOError:
             pass
         if extra:
-            return ' | '.join(extra)
-        return ''
+            return ' | '.join(extra).decode('utf-8')
+        return u''
 
 
 class XOSD_Printer:
-    def __init__(self, status_line, data_provider, refresh_time=2):
+    def __init__(self, status_line, data_provider, refresh_time=2,
+                 debug=False):
         self.osd = pyosd.osd('fixed', 'yellow')
         self.osd.set_timeout(refresh_time)
         self.osd.set_align(pyosd.ALIGN_CENTER)
         self.osd.set_outline_colour('black')
         self.osd.set_outline_offset(1)
 
+        self.debug = debug
         self.line = status_line
         self.source = data_provider
         self.time = refresh_time
@@ -143,16 +147,21 @@ class XOSD_Printer:
     def run(self):
         while True:
             time_used = self.print_state()
-            sleep_sec = max(0.1, self.time - time_used.total_seconds())
+            # print('used: %s' % time_used)
+            sleep_sec = max(0.1, self.time - time_used - 0.01)
             time.sleep(sleep_sec)
 
     def print_state(self):
         start = datetime.datetime.now()
         line = self.line.format(**dict(self.source))
 
-        self.osd.display(unidecode(line))
-        self.osd.display(unidecode(self.source.extra()), line=1)
-        return datetime.datetime.now() - start
+        if self.debug:
+            print(u'%s\r' % unidecode(line), end='')
+            sys.stdout.flush()
+        else:
+            self.osd.display(unidecode(line))
+            self.osd.display(unidecode(self.source.extra()), line=1)
+        return (datetime.datetime.now() - start).total_seconds()
 
 
 def main(debug=False):
@@ -163,11 +172,13 @@ def main(debug=False):
         ' {cpu_usage}% {cpu_temp}*C |'
         ' {mem_free} free {mem_swapped} swap |'
         ' {disk_free}'
-        '{battery}')
+        '{battery}'
+    )
     mon = SysMon()
     XOSD_Printer(status_line,
                  mon,
-                 refresh_time=4)
+                 refresh_time=4,
+                 debug=debug)
 
 if __name__ == '__main__':
-    main()
+    main(debug=('--debug' in sys.argv))
