@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [[ ! -d "$1" ]]; then
+    echo "Specify under which path (directory) '.git's should be looked for" 1>&2
+    exit 1
+fi
+
+find $1 -type d -name \.git \
+    -print \
+    -exec git --git-dir '{}' gc --aggressive \;
