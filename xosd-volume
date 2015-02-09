@@ -58,7 +58,7 @@ fi
 #echo $VOLPERC
 
 #if [[ $VOLPERC -gt 100 ]]; then
-osd_cat ${OSDOPT} -T "$VOLPERC %" -P 100
+osd_cat ${OSDOPT} -T "$VOLPERC %" -P $VOLPERC
 #else
 #    osd_cat ${OSDOPT} -P ${VOLPERC}
 #fi
