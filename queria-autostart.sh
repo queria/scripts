@@ -25,7 +25,7 @@ urxvtd -f -o
 runcond clipit
 #runcond xosd-sysmon
 runcond qslock-auto
-runcond qsrun
+#runcond qsrun
 runcond dunst
 #runcond compton -b
 
