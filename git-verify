@@ -5,63 +5,99 @@
 ###  git verify [-b [-|verify-branch]] [--all] [branchA, branchB, ...]
 ###
 ### You can use this to automate mass-branch-merging of
-### multiple independant/separate branches to one superior,
+### multiple independant/separate patch-branches to one superior,
 ### for example to verify multiple changes together.
-### This can rebuild 'verify' branch from those which were
-### merged there last time.
+### This can rebuild 'verify' branch from those previously used,
+### on top of new base (master) branch and opt. add more patch branches.
 ###
-### After merging those, it automatically pushes them to your
-### own git remote (personal mirror).
+### After merging those, it can automatically push them to your
+### own git remote (personal mirror). This requires more configuration
+### see bellow for auto-push related config.
 ###
-### Have your git repo cloned somewhere.
-### Have remote named 'my' there.
-### Have your branch with personal changes there
-### (default is empty which means no 'always merge' branches).
+### Example:
+###   Have your git repo cloned somewhere.
+###   Have remote named 'my' registered there.
+###   Have few patch branches with (non-conflicting) changes.
+###   Opt. have your branch with personal changes there
+###   (default is empty which means no 'always merge' branches).
 ###
 ### go to your repo-working-copy-dir
 ### execute:
 ###
+###  git verify patch1 patch-extra
+###  # (re)create 'verify'
+###  # - drops verify, creates again from master (base branch)
+###  # merge personal branch:
+###  # - merge in 'personal' if enabled by 'always merge' opt.
+###  # merge patch branches as provided: 'patch1', 'patch-extra'
+###
 ###  git verify
-###  # lists what other branches are contained in the 'verify' branch
+###  # lists what personal/patch branches are contained in the 'verify' branch
 ###
 ###  git verify --all
 ###  # recreate 'verify' branch:
 ###  # - destroy 'verify' branch
 ###  # - checkout branch 'master' as 'verify'
-###  # - merge you personal branch there
-###  # - in order, merge all previously merged branches
-###
-###  git verify patch1 patch-extra
-###  # recreate 'verify'
-###  # merge branches: personal, 'patch1', 'patch-extra'
+###  # - opt. merge you personal branch there
+###  # - in order, merge all previously merged branches (patch1, patch-extra)
 ###
 ###  git verify --all additional-extra
-###  # recreate, merge those already contained + 'additional-extra' branch
+###  # recreate, merge those already contained (see above)
+###  # + merge in 'additional-extra' branch
 ###
-### This refuses to continue if there are any modifications (index or w.copy).
+### This refuses to continue if your working-space or index (staged) contain any modifications.
 ###
-### To change how the 'your-personal-always-merged-branch(es)' are called,
-### export GIT_VERIFY_ALWAYS_MERGE="custom1 custom2...".
-### Be aware that those will always be rebased on top of master
-### before merging, and merged first before the rest of branches
-### specified on cli (or via --all).
+### Three basic things are configurable (via cli-opt, env-var or git-config key)
+###  - base branch (defaults to 'master')
+###     * on top of which branch should all other (personal, patches) branches be merged
+###     * git config verify.branch.base
+###     * env var BASE_BR
+###  - verify branch (defaults to 'verify')
+###     * name of target branch to be (re)created (will be dropped in some cases!)
+###       or from which the list of 'previously merged' branches should be obtained/listed
+###     * git config verify.branch.target
+###     * env var VERIFY_BR
+###     * -b <name> cli option, has to be specified first before any other arg,
+###       when dash value is provided (-b -)
+###       it means  recreate currently active branch!
+###  - always merge branch(es) (empty by default)
+###     * aka personal branches, string with space delimited branch names
+###     * git config verify.branch.alwaysmerge (e.g. 'personal')
+###     * env var GIT_VERIFY_ALWAYS_MERGE
+###     Be aware that these personal branches will always be rebased
+###     on top of master (base branch) before merging into verify,
+###     and they are merged first before the rest of patch branches.
 ###
-### You can specify different name for the 'verify' branch,
-### using -b <name>, it has to be provided before the name of
-### branches for merging (including --all).
-###
-###  git verify -b test-this --all branch1 branch2
-###
-### Specify '-' to use currently active branch instead of 'verify'
-###  git verify -b - --all branch1
+### For auto-pushing you need to configure also:
+###  - name of the remote where to auto-push the verify branch (empty)
+###     * git config verify.push.remote (e.g. 'my')
+###  - name of remote branch where to auto-push the verify branch (empty)
+###     * git config verify.push.branch (e.g. 'verify')
+###  - which branches to also always-auto-push (empty)
+###     * git config verify.push.always (e.g. 'personal')
+
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    # show the above comment as help
+    sed -n 's/^###/ /p' $0
+    exit
+fi
 
 
+
+# config
+BASE_BR="${BASE_BR:-$(git config verify.branch.base 2> /dev/null)}"
+BASE_BR="${BASE_BR:-master}"
+
+VERIFY_BR="${VERIFY_BR:-$(git config verify.branch.target 2> /dev/null)}"
+VERIFY_BR="${VERIFY_BR:-verify}"
+
+ALWAYS_MERGE="${GIT_VERIFY_ALWAYS_MERGE:-$(git config verify.branch.alwaysmerge 2> /dev/null)}"
+
+AUTOPUSH_REMOTE="$(git config verify.push.remote 2> /dev/null)"
+AUTOPUSH_BR="$(git config verify.push.branch 2> /dev/null)"
+AUTOPUSH_ALWAYS="$(git config verify.push.always 2> /dev/null)"
 
 set -o errexit
-
-BASE_BR="master"
-VERIFY_BR="${GIT_VERIFY_VERIFY_BRANCH:-verify}"
-ALWAYS_MERGE="${GIT_VERIFY_ALWAYS_MERGE}"
 
 list_merged() {
     git log $VERIFY_BR --merges \
@@ -75,11 +111,6 @@ test_branch() {
     echo "ERROR: Branch $1 not found!"
     exit 128
 }
-
-if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-    sed -n 's/^###/ /p' $0
-    exit
-fi
 
 if [[ "$1" == "-b" ]]; then
     shift
@@ -152,9 +183,26 @@ else
     done
 
 
-    echo "==[ Pushing changes ]=="
-    git push my $ALWAYS_MERGE:$ALWAYS_MERGE -f
-    git push my ${VERIFY_BR}:${VERIFY_BR} -f
+    echo "==[ Auto-push ]=="
+    if [[ -z "$AUTOPUSH_REMOTE" ]]; then
+        echo "No remote configured - skipping."
+    else
+        if [[ -z "$AUTOPUSH_ALWAYS" ]]; then
+            echo "No always-push branches configured - skipping."
+        else
+            for BR in $AUTOPUSH_ALWAYS; do
+                echo "Always-Pushing branch: $AUTOPUSH_ALWAYS:"
+                git push --force "$AUTOPUSH_REMOTE" "${BR}:${BR}"
+            done
+        fi
+
+        if [[ -z "$AUTOPUSH_BR" ]]; then
+            echo "No target verify branch configured - skipping."
+        else
+            echo "Pushing target branch: $AUTOPUSH_BR:"
+            git push --force "$AUTOPUSH_REMOTE" "${VERIFY_BR}:${AUTOPUSH_BR}"
+        fi
+    fi
 
     echo "==[ DONE ]=="
 fi
