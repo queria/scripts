@@ -34,6 +34,7 @@ import yaml
 # (negative-review, touched-lately, depends-on)
 
 
+# config file loaded from ~/.autorebase.yaml
 config = {
     'debug': False,
     'debug_change': '',
