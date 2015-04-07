@@ -7,12 +7,13 @@ if [[ -z "$BAT" ]]; then
 fi
 
 if [[ ! -x "$BAT" ]]; then
-    wall <<<"battery-guard could find battery script!"
+    wall <<<"battery-guard could not find battery script!"
 fi
 
 TOTAL=$($BAT --total)
-
 if [[ $TOTAL -lt 4 ]]; then
+    AC_PLUGGED="$(cat /sys/class/power_supply/AC/online 2>/dev/null)"
+    [[ "$AC_PLUGGED" = "1" ]] && exit 0
     wall <<<"battery-guard: suspending due to very low power!"
     sudo pm-suspend
 fi
