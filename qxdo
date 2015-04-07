@@ -5,15 +5,28 @@
 TYPE=$1
 
 case "$TYPE" in
+    "stop")
+        echo "stop qxdo!" | osd_cat &
+        for x in $(seq 3); do
+            pkill xdotool &
+            kill $(pgrep qxdo|grep -v "^$$\$")
+        done
+        pkill qxdo &
+        ;;
     "space")
+        echo "repeating space" | osd_cat &
         while true; do
             xdotool search --limit 1 --name Wine key space;
             sleep 0.4;
         done
         ;;
     "click"|*)
+        echo "repeating clicks" | osd_cat &
         while true; do
-            xdotool search --name "Firefox" click --repeat 3000 --delay 24 1
+            #xdotool search --name "Nightly" click --repeat 3000 --delay 24 1
+            #xdotool click --repeat 3000 --delay 193 1
+            xdotool mousedown 1 sleep 0.118 mouseup 1
+            sleep 0.03
         done
     ;;
 esac
