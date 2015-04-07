@@ -1,6 +1,7 @@
 #!/bin/bash
 
 xset dpms 0 0 0
+[[ -e "$HOME/all" && ! -e "$HOME/all/tmp" ]] && (mkdir /tmp/ps_tmp && ln -s /tmp/ps_tmp "$HOME/all/tmp")
 
 [[ -f /usr/share/X11/xkb/symbols/vok ]] && setxkbmap vok
 
