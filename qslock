@@ -2,6 +2,12 @@
 UNLOCK=false
 if [[ "$1" = "-u" ]]; then UNLOCK=true; shift; fi
 
+if ! $UNLOCK && [[ "$1" != "forked" ]]; then
+    $0 forked "$@" &
+    exit 0
+fi
+
+
 echo "$(date): qslock: DISP=$DISPLAY UNLOCK=$UNLOCK" >> ~/qslock.log
 tail -n1 ~/qslock.log > ~/osd-notes
 
@@ -28,9 +34,12 @@ else
         echo "Unable to find i3lock!" >&2
         exit 1
     fi
+    qdbus-qt5 org.kde.konversation /irc org.kde.konversation.setAway 'AFK' &> /dev/null
     i3lock \
+        --nofork \
         -p default \
         \ #-c ff2222 \
         -i /all/pictures/wall/danger/dark_cyber___by_steelgohst_by_steelgohst-d5hnyrs.png \
         -d #dpms
+    qdbus-qt5 org.kde.konversation /irc org.kde.konversation.setBack &> /dev/null
 fi
