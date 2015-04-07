@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# Automatically add emergency-entry for the first kernel (menuentry)
+
+# from the usual kernel entries
+# pick the FIRST entry
+# update menuentry id
+# update title of that entry
+# update the kernel arguments line
+
+if [ -x /etc/grub.d/10_linux ]; then
+    /etc/grub.d/10_linux | \
+        sed -n '/^menuentry/,/}/{p;/}/q}' | \
+        sed 's/-simple-/-emergency-/' | \
+        sed -r "s/^(menuentry '[^']+)' /\1 Emergency' /" | \
+        sed -r 's/^(\s*linux.*)$/\1 emergency/'
+fi
+
