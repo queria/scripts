@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [[ "$1" = "confirmed" ]]; then
+    #shutdown -h &
+    i3-msg exit 
+    systemctl $2
+    #dbus-send --system --print-reply --dest="org.freedesktop.ConsoleKit" /org/freedesktop/ConsoleKit/Manager org.freedesktop.ConsoleKit.Manager.Stop &
+else
+    action=${1:-poweroff}
+    i3-nagbar -t error -m "Really $action?!" -b 'Yes' "/bin/sh -c 'nohup $0 confirmed $action > $HOME/.i3-shutdown.log 2>&1'"
+fi
