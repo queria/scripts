@@ -75,11 +75,32 @@
 ###     * git config verify.push.branch (e.g. 'verify')
 ###  - which branches to also always-auto-push (empty)
 ###     * git config verify.push.always (e.g. 'personal')
+###  - to temporarily skip pushing (when it's configured)
+###     * -np || --no-push CLI opt can be used
+###
+### If you don't like having verify (target) branch active
+### after this command finishes, and instead You want to be
+### returned to whatever branch was active before git-verify invocation:
+###  - git config verify.switchback true
+### (default=false, means stay at the verify branch after finishing)
+###
+### To automatically send all the commits from patch-branches
+### on gerrit for review, you can use
+###  -r || --review [--all] [branches-to-upload ...]
+### which will instead of rebuilding/pushing the verify branch
+### invoke 'git review --yes' on every branch specified,
+### or contained in the 'verify' (in case of --all)
+### excluding the personal 'always_merge' branches.
 
 if [[ "$1" == "-h" || "$1" == "--help" ]]; then
     # show the above comment as help
     sed -n 's/^###/ /p' $0
     exit
+fi
+
+if ! git rev-parse --git-dir &> /dev/null; then
+    echo "Does not looks that $(pwd) is a git repo!" >&2
+    exit 1
 fi
 
 
@@ -97,7 +118,14 @@ AUTOPUSH_REMOTE="$(git config verify.push.remote 2> /dev/null)"
 AUTOPUSH_BR="$(git config verify.push.branch 2> /dev/null)"
 AUTOPUSH_ALWAYS="$(git config verify.push.always 2> /dev/null)"
 
+SWITCH_BACK="$(git config --bool verify.switchback 2> /dev/null)"
+
+
+
+
 set -o errexit
+
+# helpers
 
 list_merged() {
     git log $VERIFY_BR --merges \
@@ -112,97 +140,144 @@ test_branch() {
     exit 128
 }
 
-if [[ "$1" == "-b" ]]; then
-    shift
-    VERIFY_BR="$1"
-    if [[ "x${VERIFY_BR}" == "x-" ]]; then
-        # use currently active branch instead of the 'verify'
-        VERIFY_BR="$(git branch --no-color 2>/dev/null | sed -n "s/^\* \(.*\)\$/\1/p")"
-    fi
-    shift
-    echo "==/ $VERIFY_BR /=="
-fi
+active_branch() {
+    git branch | sed -nr 's/\* (.+)$/\1/p'
+}
 
-if [[ -z "$1" ]]; then
+
+
+# parse the arguments
+
+PREV_BRANCHES=""
+ARGS_BRANCHES=""
+PUSH_ALLOWED=y
+UPDATE_REVIEW=n
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -b|--branch)
+            shift
+            VERIFY_BR="$1"
+            if [[ "$VERIFY_BR" = "-" ]]; then
+                VERIFY_BR=$(active_branch)
+            fi
+            ;;
+        -np|--no-push)
+            PUSH_ALLOWED=n
+            ;;
+        -r|--review)
+            UPDATE_REVIEW=y
+            ;;
+        -a|--all)
+            PREV_BRANCHES="$(list_merged)"
+            ;;
+        *)
+            ARGS_BRANCHES="$ARGS_BRANCHES $1"
+            ;;
+    esac
+    shift
+done
+
+
+
+# if nothing specified, just list the verify branch
+
+echo "==/ $VERIFY_BR /=="
+
+if [[ -z "$PREV_BRANCHES" && -z "$ARGS_BRANCHES" ]]; then
     echo "==[ No branches specified ... listing last merges ]=="
     echo ""
-    BRANCHES=$(list_merged)
-    echo " " $BRANCHES
+    BRANCHES="$(list_merged)"
+    echo " " $BRANCHES # unquoted variable used to get the names on one line
     echo ""
     echo "---- all branches ----"
     git branch
-else
-    BRANCHES=""
-    if [[ "$1" == "--all" ]]; then
-        shift
-        BRANCHES="$(list_merged) "
-    fi
-    BRANCHES="${BRANCHES}$@"
+    exit 0
+fi
 
-    echo "==[ Going to merge branches: ]=="
 
-    for BR in $ALWAYS_MERGE; do
-        echo "* $BR"
-        test_branch "$BR"
-        git checkout "$BR"
-        git rebase $BASE_BR
-        if [[ $? != 0 ]]; then
-            echo "Personal branch $BR conflicts with $BASE_BR!"
-            git rebase --abort
-            exit 1
-        fi
-    done
-    echo $BRANCHES
-    for BR in $BRANCHES; do
-        test_branch "$BR"
-    done
+
+# Stuff which does have impact (rebase, push, review) follows
+# so we do first check for clean state.
+
+if [[ ! -z "$(git status --porcelain)" ]]; then
+    echo "==[ Unclean working copy ]=="
+    echo "Please first commit/stash/remove your local modifications.";
     echo ""
+    git status
+    exit 1
+fi
 
-    if [[ ! -z "$(git status --porcelain)" ]]; then
-        echo "==[ Unclean working copy ]=="
-        echo "Please first commit/stash/remove your local modifications.";
-        echo ""
-        git status
+ORIG_BRANCH="$(active_branch)"
+BRANCHES="$PREV_BRANCHES $ARGS_BRANCHES"
+
+if [[ "$UPDATE_REVIEW" = "y" ]]; then
+    echo "Would do 'git review' on branches: $BRANCHES"
+    # TODO: not implemented yet !!!
+    exit 0
+fi
+
+echo "==[ Going to merge branches: ]=="
+
+for BR in $ALWAYS_MERGE; do
+    echo "* $BR"
+    test_branch "$BR"
+    git checkout "$BR"
+    git rebase $BASE_BR
+    if [[ $? != 0 ]]; then
+        echo "Personal branch $BR conflicts with $BASE_BR!"
+        git rebase --abort
         exit 1
     fi
+done
+echo $BRANCHES
+for BR in $BRANCHES; do
+    test_branch "$BR"
+done
+echo ""
 
-    git checkout $BASE_BR
-    git branch -D $VERIFY_BR || :
-    git checkout -b $VERIFY_BR
+git checkout $BASE_BR
+git branch -D $VERIFY_BR || :
+git checkout -b $VERIFY_BR
 
-    set -e
+set -e
 
-    for BR in $ALWAYS_MERGE; do
-        echo "==== $BR"
-        git merge --ff-only $BR
-    done
+for BR in $ALWAYS_MERGE; do
+    echo "==== $BR"
+    git merge --ff-only $BR
+done
 
-    for BR in $BRANCHES; do
-        echo "==== $BR"
-        git merge --no-ff --commit --no-edit $BR
-    done
+for BR in $BRANCHES; do
+    echo "==== $BR"
+    git merge --no-ff --commit --no-edit $BR
+done
 
 
-    echo "==[ Auto-push ]=="
-    if [[ -z "$AUTOPUSH_REMOTE" ]]; then
-        echo "No remote configured - skipping."
+echo "==[ Auto-push ]=="
+if [[ "$PUSH_ALLOWED" != "y" ]]; then
+    echo "Auto-push disabled."
+elif [[ -z "$AUTOPUSH_REMOTE" ]]; then
+    echo "No remote configured - skipping."
+else
+    if [[ -z "$AUTOPUSH_ALWAYS" ]]; then
+        echo "No always-push branches configured - skipping."
     else
-        if [[ -z "$AUTOPUSH_ALWAYS" ]]; then
-            echo "No always-push branches configured - skipping."
-        else
-            for BR in $AUTOPUSH_ALWAYS; do
-                echo "Always-Pushing branch: $AUTOPUSH_ALWAYS:"
-                git push --force "$AUTOPUSH_REMOTE" "${BR}:${BR}"
-            done
-        fi
-
-        if [[ -z "$AUTOPUSH_BR" ]]; then
-            echo "No target verify branch configured - skipping."
-        else
-            echo "Pushing target branch: $AUTOPUSH_BR:"
-            git push --force "$AUTOPUSH_REMOTE" "${VERIFY_BR}:${AUTOPUSH_BR}"
-        fi
+        for BR in $AUTOPUSH_ALWAYS; do
+            echo "Always-Pushing branch: $AUTOPUSH_ALWAYS:"
+            git push --force "$AUTOPUSH_REMOTE" "${BR}:${BR}"
+        done
     fi
 
-    echo "==[ DONE ]=="
+    if [[ -z "$AUTOPUSH_BR" ]]; then
+        echo "No target verify branch configured - skipping."
+    else
+        echo "Pushing target branch: $AUTOPUSH_BR:"
+        git push --force "$AUTOPUSH_REMOTE" "${VERIFY_BR}:${AUTOPUSH_BR}"
+    fi
 fi
+
+echo "==[ DONE ]=="
+if [[ "$SWITCH_BACK" = "true" ]]; then
+    git checkout $ORIG_BRANCH
+fi
+
