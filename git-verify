@@ -68,6 +68,9 @@
 ###     on top of master (base branch) before merging into verify,
 ###     and they are merged first before the rest of patch branches.
 ###
+### To skip missing branches (whatever if specified explicitely or via --all)
+### use -m (--ignore-missing) (or verify.branch.ignoremissing=true).
+###
 ### For auto-pushing you need to configure also:
 ###  - name of the remote where to auto-push the verify branch (empty)
 ###     * git config verify.push.remote (e.g. 'my')
@@ -113,6 +116,8 @@ VERIFY_BR="${VERIFY_BR:-$(git config verify.branch.target 2> /dev/null)}"
 VERIFY_BR="${VERIFY_BR:-verify}"
 
 ALWAYS_MERGE="${GIT_VERIFY_ALWAYS_MERGE:-$(git config verify.branch.alwaysmerge 2> /dev/null)}"
+IGNORE_MISSING="${IGNORE_MISSING:-$(git config verify.branch.ignoremissing 2> /dev/null)}"
+IGNORE_MISSING="${IGNORE_MISSING:-false}"
 
 AUTOPUSH_REMOTE="$(git config verify.push.remote 2> /dev/null)"
 AUTOPUSH_BR="$(git config verify.push.branch 2> /dev/null)"
@@ -136,6 +141,10 @@ list_merged() {
 test_branch() {
     if git branch | grep -q "$1" && git log -1 "$1" -- &>/dev/null; then
         return
+    fi
+    if [[ "$IGNORE_MISSING" = "true" ]]; then
+        echo "WARNING: Branch $1 not found."
+        return 1
     fi
     echo "ERROR: Branch $1 not found!"
     exit 128
@@ -185,6 +194,9 @@ while [[ $# -gt 0 ]]; do
             UPDATE_PREVIEW=y
             UPDATE_REVIEW=y
             ;;
+        -m|--ignore-missing)
+            IGNORE_MISSING=true
+            ;;
         -a|--all)
             PREV_BRANCHES="$(list_merged)"
             ;;
@@ -228,6 +240,15 @@ fi
 ORIG_BRANCH="$(active_branch)"
 BRANCHES="$PREV_BRANCHES $ARGS_BRANCHES"
 
+echo $BRANCHES
+WANTED_BRANCHES="$BRANCHES"
+BRANCHES=""
+for BR in $WANTED_BRANCHES; do
+    if test_branch "$BR"; then
+        BRANCHES="$BRANCHES $BR"
+    fi
+done
+
 if [[ "$UPDATE_PREVIEW" = "y" ]]; then
     FAILED_REVIEWS=""
     NOCHANGE_REVIEWS=""
@@ -267,7 +288,7 @@ echo "==[ Going to merge branches: ]=="
 
 for BR in $ALWAYS_MERGE; do
     echo "* $BR"
-    test_branch "$BR"
+    test_branch "$BR" || continue
     git checkout "$BR"
     git rebase $BASE_BR
     if [[ $? != 0 ]]; then
@@ -275,10 +296,6 @@ for BR in $ALWAYS_MERGE; do
         git rebase --abort
         exit 1
     fi
-done
-echo $BRANCHES
-for BR in $BRANCHES; do
-    test_branch "$BR"
 done
 echo ""
 
