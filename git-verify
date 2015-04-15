@@ -120,6 +120,7 @@ AUTOPUSH_ALWAYS="$(git config verify.push.always 2> /dev/null)"
 
 SWITCH_BACK="$(git config --bool verify.switchback 2> /dev/null)"
 
+FILES_TO_CLEAN=""
 
 
 
@@ -144,6 +145,17 @@ active_branch() {
     git branch | sed -nr 's/\* (.+)$/\1/p'
 }
 
+finish() {
+    echo "==[ DONE ]=="
+    if [[ ! -z "$FILES_TO_CLEAN" ]]; then
+        rm -rf "$(ls $FILES_TO_CLEAN)"
+    fi
+    if [[ "$SWITCH_BACK" = "true" ]]; then
+        git checkout $ORIG_BRANCH
+    fi
+    exit ${1:-0}
+}
+
 
 
 # parse the arguments
@@ -151,6 +163,7 @@ active_branch() {
 PREV_BRANCHES=""
 ARGS_BRANCHES=""
 PUSH_ALLOWED=y
+UPDATE_PREVIEW=n
 UPDATE_REVIEW=n
 
 while [[ $# -gt 0 ]]; do
@@ -165,7 +178,11 @@ while [[ $# -gt 0 ]]; do
         -np|--no-push)
             PUSH_ALLOWED=n
             ;;
+        -pr|--preview)
+            UPDATE_PREVIEW=y
+            ;;
         -r|--review)
+            UPDATE_PREVIEW=y
             UPDATE_REVIEW=y
             ;;
         -a|--all)
@@ -211,10 +228,39 @@ fi
 ORIG_BRANCH="$(active_branch)"
 BRANCHES="$PREV_BRANCHES $ARGS_BRANCHES"
 
-if [[ "$UPDATE_REVIEW" = "y" ]]; then
-    echo "Would do 'git review' on branches: $BRANCHES"
-    # TODO: not implemented yet !!!
-    exit 0
+if [[ "$UPDATE_PREVIEW" = "y" ]]; then
+    FAILED_REVIEWS=""
+    NOCHANGE_REVIEWS=""
+    REVIEWLOG=$(mktemp)
+    FILES_TO_CLEAN="$FILES_TO_CLEAN $REVIEWLOG"
+    for BR in $BRANCHES; do
+        echo "==[ Uploading $BR ]=="
+
+        git log ${BASE_BR}..${BR}
+
+        if [[ "$UPDATE_REVIEW" = "y" ]]; then
+            git checkout $BR
+            git review --yes | tee $REVIEWLOG
+            rc="${PIPESTATUS[0]}"
+            if [[ "$rc" != "0" ]]; then
+                if grep -q '(no new changes)' $REVIEWLOG; then
+                    NOCHANGE_REVIEWS="$NOCHANGE_REVIEWS $BR"
+                else
+                    FAILED_REVIEWS="$FAILED_REVIEWS $BR"
+                fi
+            else
+                UPDATED_REVIEWS="$UPDATED_REVIEWS $BR"
+            fi
+        fi
+        echo ""
+    done
+    echo "Updated reviews for branches: $UPDATED_REVIEWS"
+    echo "Already up-to-date reviews for: $NOCHANGE_REVIEWS"
+    if [[ ! -z "$FAILED_REVIEWS" ]]; then
+        echo "Failed to upload branches: $FAILED_REVIEWS" >&2
+        finish 1
+    fi
+    finish
 fi
 
 echo "==[ Going to merge branches: ]=="
@@ -276,8 +322,4 @@ else
     fi
 fi
 
-echo "==[ DONE ]=="
-if [[ "$SWITCH_BACK" = "true" ]]; then
-    git checkout $ORIG_BRANCH
-fi
-
+finish
