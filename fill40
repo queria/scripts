@@ -1,0 +1,198 @@
+#!/usr/bin/env python
+
+import sys
+
+
+DEBUG = False
+
+
+def debug(msg):
+    if DEBUG:
+        print('\t\t\t %s' % msg)
+
+
+def findit(nums, target):
+    nums = sorted(nums)
+    debug('total sum of input %s is %s' % (nums, sum(nums)))
+    size = len(nums)
+    best_sol = []
+    best_sum = []
+
+    sol = []
+    sol_idxs = []
+    pick_from = 0
+    # while pick_to < size:
+    while True:
+        sol_idxs.append(pick_from)
+        sol.append(nums[pick_from])
+        # sol.append(
+        sol_sum = sum(sol)
+        backtrack_last_val = None
+        if sol_sum >= target:
+            debug('%s = %s' % (sum(sol), sol))
+            # we have reached the target
+            if (sol_sum < best_sum
+                or (sol_sum == best_sum
+                    and len(sol) < len(best_sol))):
+                # we have reached the best-yet target
+                best_sol = sol[:]
+                best_sum = sol_sum
+            # for current branch we reached the solution
+            # so lets backtrack to another branch
+            pick_from = sol_idxs.pop() + 1
+            backtrack_last_val = sol.pop()
+        else:
+            debug('? = %s' % sol)
+            # pick next number
+            pick_from = pick_from + 1
+
+        debug('next pick_from should be %s' % pick_from)
+        # if the next num has the same value as the last on this position
+        # skip it, as it would generate just same branch
+        if pick_from < size and nums[pick_from] == backtrack_last_val:
+            pick_from += 1
+        # if we reached the end, backtrack
+        while pick_from >= size and len(sol):
+            backtrack_last_val = sol.pop()
+            pick_from = sol_idxs.pop() + 1
+            debug('poped %s next pick_from=%s'
+                  % (backtrack_last_val, pick_from))
+            if pick_from < size and nums[pick_from] == backtrack_last_val:
+                # again, we would build branch with same value
+                # (repeated nums in input) so skip to next one
+                debug('skipping same value %s' % backtrack_last_val)
+                pick_from += 1
+
+        if not len(sol) and pick_from == size:
+            debug('Seems no more options to try?')
+            break
+    return best_sol
+
+# some theory/explanation follows ...
+
+# generate all combinations for input set "nums" such that
+# - K is from [1...len(nums)]
+# - sum of the combination is >= target
+# and from all the matching combinations pick the one that:
+# - has sum of all it's elements lowest possible compared to other combinations
+#   (while still >= target(40 in my case))
+# - and it's count of elements used (K) is smallest
+#   (in case sum of two sets matches)
+
+# build combinations by picking next number from provided nums so:
+#  - if we (over)reached target
+#    - compare with so-far-best solution
+#       prefer current if sum or len is smaller
+#    - stop current branch
+#       continue with next numbers
+#       for last-added position
+#  - else add next number to the next position
+#  - if we used last available number
+#    - go back by one number in the solution
+#    - and replace then-last with the one next after it from nums
+#  - if we used last avail. number and are at the first-solution
+#    number position, we reached the last possible combination
+
+# two small optimalizations are done here
+# - early cutting generation via >= target ... backtrack(1)
+# - using sorted input, and skipping to next num if the current-next has same
+#   value as the previously used number
+#   so given [0:6, 1:6, 2:13] (index:value)
+#   after trying [0:6, 2:13] when going to pick [1:6, ...]
+#   we completely skip-out that (go for [2:13, ...])
+#   as prev_val(<0:6>) == next_val(<1:6>)
+
+# example branching/generation steps:
+# 12-6-6-14-18 = 56
+#       -18    = 42
+#     -14-18   = 50
+#     -18      =
+#   - ...
+# 18           = no need to try it with other numbers,
+# as it already was tried, just in different order
+#
+
+
+def fill(nums, target):
+    solutions = []
+    nums_left = [int(n) for n in nums]
+
+    while len(nums_left):
+        sol = findit(nums_left, target)
+        if sol:
+            solutions.append(sol)
+            for num in sol:
+                nums_left.remove(num)
+        else:
+            break  # no solution found
+    return (solutions, nums_left)
+
+
+def main(nums):
+    target = 40
+
+    sols, left = fill(nums, target)
+    if not sols:
+        print('No solution for numbers %s.' % nums)
+    else:
+        print('For numbers %s these are the solutions:' % nums)
+        for sol in sols:
+            print('+ %s => %s' % (sol, sum(sol)))
+        print('- %s -- unused' % left)
+
+
+def test():
+    total = 0
+    failed = 0
+    # ~~ Structure of the tests variable: ~~
+    # tests = list_of(<test-case>)
+    # test-case = tuple(<description_str>, <expected-solutions>, <numbers>)
+    # numbers = list_of(<int_or_str>)
+    # expected-solutions = list_of(<solution>)
+    # solution = sorted_list_of(<int>)
+    tests = (
+        ('not enough to fill 40',
+         [],
+         ['13', '6']),
+
+        ('backtrack and skip middle nums',
+         [[6, 6, 12, 18]],
+         ['12', '6', '6', '14', '18']),
+
+        ('skip first => full backtrack, also skip last',
+         [[10, 10, 10, 10]],
+         ['11', '10', '10', '10', '10', '12']),
+
+        ('backtrack, skip middle, pick longer tail (prob. useless?)',
+         [[10, 12, 18]],
+         ['18', '6', '6', '12', '10']),
+
+        ('multi-solution, prefer-less-20s first, leave behind bigger 7',
+         [[20, 20], [13, 13, 14], [4, 6, 10, 11, 11]],
+         ['6', '7', '11', '13', '13', '14', '20', '11', '10', '20', '4']),
+    )
+    for desc, expected, nums in tests:
+        sols, left = fill(nums, 40)
+        total += 1
+        if expected == sols:
+            print('Passed: %s' % (desc))
+        else:
+            failed += 1
+            print('FAILED: %s ... %s => %s while should be %s'
+                  % (desc, nums, sols, expected))
+
+    if failed:
+        print('From total %s tests, %s has failed!' % (total, failed))
+    else:
+        print('All %s tests passed.' % total)
+
+
+if __name__ == '__main__':
+    args = sys.argv[1:]
+    if '--debug' in args:
+        args.remove('--debug')
+        DEBUG = True
+    if '--test' in args:
+        test()
+    else:
+        main(args)
