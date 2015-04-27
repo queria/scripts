@@ -219,8 +219,13 @@ if [[ -z "$PREV_BRANCHES" && -z "$ARGS_BRANCHES" ]]; then
     BRANCHES="$(list_merged)"
     echo " " $BRANCHES # unquoted variable used to get the names on one line
     echo ""
-    echo "---- all branches ----"
+    echo "---- all existing branches ----"
     git branch
+    echo ""
+    IGNORE_MISSING="true"
+    for BR in $BRANCHES; do
+        test_branch $BR
+    done
     exit 0
 fi
 
