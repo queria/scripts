@@ -45,11 +45,14 @@ fi
 xrandr --output $DEFAULT --auto --rotate normal --reflect normal --primary
 
 case $CONFIG in
+    home)
+        xrandr --output VGA1 --auto --primary --output $DEFAULT --off
+        ;;
     work)
         xrandr --output HDMI3 --auto --above $DEFAULT --output $DEFAULT --auto --primary
         ;;
     present)
-        xrandr --output VGA1 --auto --leftof $DEFAULT --output $DEFAULT --auto --primary
+        xrandr --output VGA1 --auto --left-of $DEFAULT --output $DEFAULT --auto --primary
         ;;
     present-mirror)
         xrandr --output VGA1 --same-as $DEFAULT
