@@ -215,14 +215,18 @@ echo "==/ $VERIFY_BR /=="
 
 if [[ -z "$PREV_BRANCHES" && -z "$ARGS_BRANCHES" ]]; then
     echo "==[ No branches specified ... listing last merges ]=="
-    echo ""
-    BRANCHES="$(list_merged)"
-    echo " " $BRANCHES # unquoted variable used to get the names on one line
+    IGNORE_MISSING=true
+    if test_branch "$VERIFY_BR"; then
+        echo ""
+        BRANCHES="$(list_merged)"
+        echo " " $BRANCHES # unquoted variable used to get the names on one line
+    else
+        echo "No already merged branches as there is no $VERIFY_BR branch"
+    fi
     echo ""
     echo "---- all existing branches ----"
     git branch
     echo ""
-    IGNORE_MISSING="true"
     for BR in $BRANCHES; do
         test_branch $BR
     done
