@@ -205,11 +205,19 @@ if __name__ == '__main__':
     my_open = list_changes()
 
     for change in my_open:
-        debug('[%s] %s' % (change['url'], change['subject']))
-        if should_be_rebased(change, '--force' in sys.argv):
-            debug('- should be rebased')
-            rebase_change(change)
-        if (config['the_reviewer']
-                and not has_reviewer(change, config['the_reviewer'])):
-            debug('- is missing the reviewer')
-            add_reviewer(change, config['the_reviewer'])
+        try:
+            debug('[%s] %s' % (change['url'], change['subject']))
+            if should_be_rebased(change, '--force' in sys.argv):
+                debug('- should be rebased')
+                try:
+                    rebase_change(change)
+                except subprocess.CalledProcessError:
+                    debug('- rebase FAILED! maybe there is REAL CONFLICT?')
+            if (config['the_reviewer']
+                    and not has_reviewer(change, config['the_reviewer'])):
+                debug('- is missing the reviewer')
+                add_reviewer(change, config['the_reviewer'])
+        except Exception as exc:
+            config['debug'] = True
+            debug('Exception %s with change %s' (exc, change))
+            raise
