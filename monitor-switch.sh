@@ -15,10 +15,15 @@ fi
 
 # if specified, otherwise try autodetection
 if [[ -z "$CONFIG" ]]; then
-    if xrandr -q | grep "HDMI3 connected"; then
-        CONFIG=work
-    elif [[ $(xrandr -q | grep " connected "|wc -l) == 1 ]]; then
+    XROUT=$(xrandr -q)
+    if [[ "$(grep -q " connected " <<<"$XROUT" | wc -l)" = "1" ]]; then
         CONFIG=default
+    elif grep -q "HDMI3 connected" <<<"$XROUT"; then
+        CONFIG=work
+    elif grep -q "VGA1 connected" <<<"$XROUT"; then
+        EXTRA_ID=$(md5sum /sys/class/drm/card0-VGA-1/edid | cut -f1 -d' ')
+        echo "EDID: $EXTRA_ID"
+        [[ "$EXTRA_ID" = "b3bd2d4d69de88ff12cba4b2d883ec3c" ]] && CONFIG=home
     fi
     # place your autodetection here
 
@@ -43,6 +48,7 @@ fi
 
 # always switch back to default
 xrandr --output $DEFAULT --auto --rotate normal --reflect normal --primary
+
 
 case $CONFIG in
     home)
