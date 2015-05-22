@@ -1,0 +1,66 @@
+#!/bin/bash
+
+if [[ "$1" = "-v" ]]; then
+    shift
+    set -x
+fi
+
+host="$1"
+if ! grep -Eq "^[0-9.]+$" <<<"$host"; then
+    if [[ ! -z "$OS_AUTH_URL" ]]; then
+        flip=$(nova floating-ip-list | \
+            grep $(nova show --minimal "$host" | \
+                grep ' id ' | \
+                awk '{print $4}'
+            ) | awk '{ print $2 }'
+        )
+        if [[ ! -z "$flip" ]]; then
+            echo "Using floating ip $flip"
+            host=$flip
+        fi
+    fi
+fi
+usr=${usr:-root};
+sshkey=${key:-~/.ssh/rhos-jenkins};
+sudo=${sudo:-false};
+
+ssh="ssh";
+ssh="$ssh -i $(readlink -f $sshkey)";
+ssh="$ssh -o PreferredAuthentications=publickey,password";
+ssh="$ssh -o StrictHostKeyChecking=no";
+ssh="$ssh -o UserKnownHostsFile=/dev/null";
+
+TMPLOG="$(mktemp)"
+trap "rm $TMPLOG" EXIT
+
+try_user() {
+    $ssh -o User=$2 "$1" "echo 'success as the user \"$2\"'" &> $TMPLOG &
+    sshpid=$!
+
+    while ps -p $sshpid > /dev/null && ! grep -q 'as the user' $TMPLOG; do sleep 0.1; done
+    (ps -p $sshpid && kill $sshpid) &> /dev/null;
+    sed -nr 's/.*as the user "([^"]+)".*/\1/p' $TMPLOG;
+}
+
+echo -ne "Determining user ...\r" 1>&2;
+found="$(try_user "$host" "$usr")"
+[[ -z "$found" && "$usr" != "root" ]] && found="$(try_user "$host" "root")"
+
+if [[ -z "$found" ]]; then
+    echo "FAILED to determine the remote user!" 1>&2;
+    exit 1;
+fi;
+
+echo "Logging in as user $found." 1>&2;
+
+rcmd="${@:2:$#}";
+if [[ "$found" != "root" ]]; then
+    if [[ -z "$rcmd" ]]; then
+        rcmd="sudo bash";
+    else
+        if $sudo; then
+            rcmd="sudo bash -c '$rcmd'";
+        fi;
+    fi;
+fi;
+exec $ssh -t -o User=$found "$host" "$rcmd"

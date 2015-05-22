@@ -1,0 +1,56 @@
+#!/bin/bash
+#set -o xtrace
+
+USERBR=""
+RUNNING=false
+BROWSERS=( nightly aurora firefox chrome chromium-browser qupzilla opera )
+CMDS=()
+
+
+# gather all process which could match
+for BR in ${BROWSERS[*]}; do
+    CMD=$(ps -C "$BR" -o user,cmd | grep "^$USER");
+    CMDS+=($CMD)
+done
+
+# find the first matching (== obey the users priority)
+for BR in ${BROWSERS[*]}; do
+    for CMD in ${CMDS[*]}; do
+        grep -q "$BR" <<<$CMD && USERBR=$BR && break;
+    done
+    [[ ! -z "$USERBR" ]] && break
+done
+
+if [[ -z "$USERBR" ]]; then
+    USERBR=${BROWSERS[0]}
+else
+    RUNNING=true
+fi
+
+if which "$USERBR" &> /dev/null; then
+    ## for debugging:
+    #notify-send -a 'browser' \
+    #    -i 'internet-web-browser' \
+    #    -c 'error' \
+    #    'Browser launched!' \
+    #    "Browser ${USERBR} '$@' launched."
+    ## -----
+    if [[ "$DESKTOP_SESSION" = "i3" ]]; then
+        if ! $RUNNING || [[ ! -z "$*" ]]; then
+            # not running or url/args provided
+            "$USERBR" "$@" &
+            if ! $RUNNING; then
+                sleep 1.3
+            fi
+        fi
+        i3-msg "[title=(?i)$USERBR] focus"
+    else
+        exec "$USERBR" "$@"
+    fi
+else
+    notify-send -a 'browser' \
+        -i 'internet-web-browser' \
+        -c 'error' \
+        'Browser not found!' \
+        'Browser autodetection failed.'
+fi
