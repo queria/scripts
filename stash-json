@@ -1,0 +1,33 @@
+#!/usr/bin/env python
+import json
+import textwrap
+import sys
+
+verbose = True
+
+with open(sys.argv[1]) as jsfile:
+    stash_content = json.load(jsfile)
+indenter = textwrap.TextWrapper(
+    width=70,
+    initial_indent='  ',
+    subsequent_indent='  ')
+fmt = indenter.fill
+# fmt = lambda text: indenter.fill(text)
+
+for item in stash_content['items']:
+    header = item['name']
+    if not header:
+        header = item['typeLine']
+    for p in item['properties']:
+        if p['name'] not in ['Level', 'Mana Cost']:
+            if not p['values'] and not p['displayMode']:
+                header += '  (' + p['name'] + ')'
+    print(header)
+    if verbose:
+        for mod in item['explicitMods']:
+            print(' - ' + mod)
+        print('')
+        if 'Place into an item socket' not in item['descrText']:
+            print(fmt(item['descrText']))
+        print(fmt(item['secDescrText']))
+    print('\n ------- ')
