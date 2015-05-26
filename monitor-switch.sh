@@ -5,18 +5,19 @@ if [[ "$1" = "--safe" ]]; then
     SAFEONLY=true
     shift
 fi
-# use configuration given as argument
-CONFIG=$1
 
 if ! which xrandr &> /dev/null; then
     echo "No xrandr command available ... you have to fix it."
     exit 1
 fi
 
+XROUT=$(xrandr -q)
+
+# use configuration given as argument
+CONFIG=$1
 # if specified, otherwise try autodetection
 if [[ -z "$CONFIG" ]]; then
-    XROUT=$(xrandr -q)
-    if [[ "$(grep -q " connected " <<<"$XROUT" | wc -l)" = "1" ]]; then
+    if [[ "$(grep " connected " <<<"$XROUT" | wc -l)" = "1" ]]; then
         CONFIG=default
     elif grep -q "HDMI3 connected" <<<"$XROUT"; then
         CONFIG=work
@@ -39,12 +40,12 @@ DEFAULT="${DEFAULT:-$(xrandr |sed -rn 's/(.*) connected .*/\1/p'|head -n1)}"
 # incorrectly after display is switched
 # ~ https://github.com/Razor-qt/razor-qt/issues/612
 
-if ! $SAFEONLY; then
-    for DISP in $(xrandr |sed -n '/connect/s/ \(dis\)\?connected.*$//p'); do
-        [[ "$DISP" = "$DEFAULT" && $SAFEONLY ]] && continue
-        xrandr --output $DISP --off
-    done
-fi
+whichstate="(dis)?connected"
+$SAFEONLY && whichstate="disconnected"
+for DISP in $(sed -nr "s/^(.*) $whichstate.*/\1/p" <<<"$XROUT"); do
+    [[ "$DISP" = "$DEFAULT" && $SAFEONLY ]] && continue
+    xrandr --output $DISP --off
+done
 
 # always switch back to default
 xrandr --output $DEFAULT --auto --rotate normal --reflect normal --primary
