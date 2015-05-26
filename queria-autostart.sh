@@ -30,4 +30,4 @@ runcond qslock-auto
 runcond dunst
 #runcond compton -b
 
-fbsetbg -C /all/pictures/wall/london__from_sky_by_alierturk-d7vi05e.jpg
+fbsetbg -C $HOME/wallpaper.png
