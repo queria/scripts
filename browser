@@ -23,6 +23,12 @@ done
 
 if [[ -z "$USERBR" ]]; then
     USERBR=${BROWSERS[0]}
+    for BR in ${BROWSERS[*]}; do
+        if which "$BR" &> /dev/null; then
+            USERBR=$BR
+            break
+        fi
+    done
 else
     RUNNING=true
 fi
