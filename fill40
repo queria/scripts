@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import sys
+import tornado.ioloop
+import tornado.web
 
 
 DEBUG = False
@@ -186,6 +188,58 @@ def test():
     else:
         print('All %s tests passed.' % total)
 
+def numsWithout(nums, sol):
+    nw = nums[:]
+    for n in sol:
+        try:
+            nw.remove(n)
+        except:
+            print(n)
+            raise
+    return nw
+
+def safeint(num):
+    try:
+        return int(num)
+    except:
+        return 0
+
+class MainPage(tornado.web.RequestHandler):
+    def get(self):
+        self.write('<html><head>'
+                   '<meta charset="utf-8" />'
+                   '<title>fill40</title>'
+                   '<style>body {font-size:75px;}</style>'
+                   '</head><body>')
+        self.write('<form method="get" action="./">')
+        self.write('<p><input type="number" name="numbers" id=newnum'
+                   ' autofocus=autofocus /></p>')
+        nums = self.get_query_arguments('numbers')
+        nums = [n for n in [safeint(n) for n in nums] if n]
+        for num in nums:
+            if num:
+                self.write('<input type="number" name="numbers" value="%s" />'
+                           % num)
+        self.write('<p><input type=submit value=addnum>'
+                   ' &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ')
+        self.write('<input type=submit name=docalc value=calc></p>')
+        self.write('</form>')
+        if self.get_query_argument('docalc', ''):
+            target = 40
+
+            sols, left = fill(nums, target)
+            if not sols:
+                self.write('No solution for numbers %s.' % nums)
+            else:
+                self.write('For numbers %s these are the solutions:<pre>' % nums)
+                for sol in sols:
+                    self.write('+ %s => %s' % (sol, sum(sol)))
+                    self.write(' <a href="?docalc=1&numbers=%s">drop</a>\n\n' %
+                               '&numbers='.join([str(n) for n
+                                                 in numsWithout(nums, sol)]))
+                self.write('- %s -- unused</pre>' % left)
+        self.write('</body></html>')
+
 
 if __name__ == '__main__':
     args = sys.argv[1:]
@@ -194,5 +248,11 @@ if __name__ == '__main__':
         DEBUG = True
     if '--test' in args:
         test()
+    elif '--web' in args:
+        app = tornado.web.Application([
+            (r'/', MainPage),
+        ])
+        app.listen(8888)
+        tornado.ioloop.IOLoop.current().start()
     else:
         main(args)
