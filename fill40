@@ -209,7 +209,7 @@ class MainPage(tornado.web.RequestHandler):
         self.write('<html><head>'
                    '<meta charset="utf-8" />'
                    '<title>fill40</title>'
-                   '<style>body {font-size:75px;}</style>'
+                   '<style>* {font-size:45px;}</style>'
                    '</head><body>')
         self.write('<form method="get" action="./">')
         self.write('<p><input type="number" name="numbers" id=newnum'
@@ -238,6 +238,7 @@ class MainPage(tornado.web.RequestHandler):
                                '&numbers='.join([str(n) for n
                                                  in numsWithout(nums, sol)]))
                 self.write('- %s -- unused</pre>' % left)
+        self.write('<p><br /><br /><a href="./">clean all</a></p>')
         self.write('</body></html>')
 
 
