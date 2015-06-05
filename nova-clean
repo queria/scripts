@@ -1,0 +1,36 @@
+#!/bin/bash
+
+PATT=$1
+
+if [[ -z "$PATT" || "$PATT" = "--help" ]]; then
+    echo "Specify grep pattern for nova-list output filtering"
+    echo "to limit which VMs (and their FlIPs) you want to delete."
+    exit 0
+fi
+
+OUTPUT="$(nova list| grep "$PATT")"
+
+if [[ "$(grep -v '^$' <<<"$OUTPUT" | wc -l)" -lt 1 ]]; then
+    echo "Seems no VMs were found for pattern $PATT"
+    exit 0
+fi
+echo "Going to clean:"
+echo "$OUTPUT"
+
+
+for FLIP in $(grep "$PATT" <<<"$OUTPUT" |sed -nr 's/.*, (10\.[0-9.]+);.*/\1/p'); do
+    echo "Delete $FLIP"
+    nova floating-ip-delete $FLIP &
+done
+
+wait
+echo "FlIPs gone"
+
+
+for VM in $(grep "$PATT" <<<"$OUTPUT" | awk '{ print $2 }'); do
+    echo "Delete $VM"
+    nova delete $VM &
+done
+
+wait
+echo "VMs deleting"
