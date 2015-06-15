@@ -2,32 +2,60 @@
 import json
 import textwrap
 import sys
+import requests
 
-verbose = True
+def format_stash(stash_content, verbose=True):
+	indenter = textwrap.TextWrapper(
+	    width=70,
+	    initial_indent='  ',
+	    subsequent_indent='  ')
+	fmt = indenter.fill
+	# fmt = lambda text: indenter.fill(text)
 
-with open(sys.argv[1]) as jsfile:
-    stash_content = json.load(jsfile)
-indenter = textwrap.TextWrapper(
-    width=70,
-    initial_indent='  ',
-    subsequent_indent='  ')
-fmt = indenter.fill
-# fmt = lambda text: indenter.fill(text)
+	for item in stash_content['items']:
+	    header = item['name']
+	    if not header:
+		header = item['typeLine']
+	    for p in item['properties']:
+		if p['name'] not in ['Level', 'Mana Cost']:
+		    if not p['values'] and not p['displayMode']:
+			header += '  (' + p['name'] + ')'
+	    print(header)
+	    if verbose:
+		for mod in item['explicitMods']:
+		    print(' - ' + mod)
+		print('')
+		if 'Place into an item socket' not in item['descrText']:
+		    print(fmt(item['descrText']))
+		print(fmt(item['secDescrText']))
+	    print('\n ------- ')
 
-for item in stash_content['items']:
-    header = item['name']
-    if not header:
-        header = item['typeLine']
-    for p in item['properties']:
-        if p['name'] not in ['Level', 'Mana Cost']:
-            if not p['values'] and not p['displayMode']:
-                header += '  (' + p['name'] + ')'
-    print(header)
-    if verbose:
-        for mod in item['explicitMods']:
-            print(' - ' + mod)
-        print('')
-        if 'Place into an item socket' not in item['descrText']:
-            print(fmt(item['descrText']))
-        print(fmt(item['secDescrText']))
-    print('\n ------- ')
+class POEWeb(object):
+	def __init__(self, user, passwd):
+		super(POEWeb, self).__init__()
+		self.r = requests.Session()
+
+		login_url ='https://www.pathofexile.com/login' 
+		login_form = self.r.get(login_url)
+		form_hash = login_form[0] # parse out the form csrf hash
+		self.r.post(login_url, {'hash':form_hash, 'user':user, 'pwd':passwd, 'login':'Login'})
+		# check if we are properly authenticated?
+
+	def fetch_stash_tab(self, tab_number):
+		content = self.r.get('https://www.pathofexile.com/forum/new-thread/1')
+		pass
+
+def fetch_content():
+	with open(os.path.expanduser('~/.poe.conf')) as cfg_file:
+		cfg = cfg_file.readall()
+	poe = POEWeb(user=cfg['user'], passwd=cfg['passwd'])
+	return poe.fetch_stash_tab(0)
+
+if __name__ == '__main__':
+
+	if '--fetch' in sys.argv:
+		stash_content = fetch_content()
+	else:
+		with open(sys.argv[1]) as jsfile:
+		    stash_content = json.load(jsfile)
+	format_stash(stash_content)
