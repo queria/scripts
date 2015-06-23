@@ -42,6 +42,7 @@ config = {
     'port': '29418',
     'project': 'someones/something',
     'owner': 'your-nick-or-mail',
+    'branch': 'master',
     'lately_days': 1,
     'the_reviewer': '',
 }
@@ -92,6 +93,8 @@ def list_changes(query_filter=None):
             query_filter = 'change:%s' % config['debug_change']
         if config['owner']:
             query_filter = '%s owner:%s' % (query_filter, config['owner'])
+        if config['branch']:
+            query_filter = '%s branch:%s' % (query_filter, config['branch'])
 
     changes_str = ssh_gerrit(
         ("query 'project:%s %s'"
