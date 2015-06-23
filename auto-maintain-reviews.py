@@ -87,10 +87,12 @@ def rebase_change(change_info):
 
 def list_changes(query_filter=None):
     if query_filter is None:
-        query_filter = 'status:open owner:%s' % config['owner']
+        query_filter = 'status:open'
         if config['debug_change']:
-            query_filter = 'change:%s owner:%s' % (config['debug_change'],
-                                                   config['owner'])
+            query_filter = 'change:%s' % config['debug_change']
+        if config['owner']:
+            query_filter = '%s owner:%s' % (query_filter, config['owner'])
+
     changes_str = ssh_gerrit(
         ("query 'project:%s %s'"
          " --current-patch-set"
@@ -138,7 +140,7 @@ def touched_lately(change):
 
 def depends_on_any(change, changes):
     all_ids = [ch['id'] for ch in changes]
-    for dep in change.get('dependsOn'):
+    for dep in change.get('dependsOn', []):
         if dep['id'] in all_ids:
             return True
     return False
@@ -150,7 +152,7 @@ def is_mergeable(change):
 
 
 def has_negative_cr(change):
-    for vote in change['currentPatchSet']['approvals']:
+    for vote in change['currentPatchSet'].get('approvals', []):
         if vote['type'] == 'Code-Review' and int(vote['value']) < 0:
             return True
     return False
@@ -219,5 +221,5 @@ if __name__ == '__main__':
                 add_reviewer(change, config['the_reviewer'])
         except Exception as exc:
             config['debug'] = True
-            debug('Exception %s with change %s' (exc, change))
+            debug('Exception %s with change %s' % (exc, change))
             raise
