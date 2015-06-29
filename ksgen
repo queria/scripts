@@ -16,19 +16,24 @@ if [[ "$@" != "help" ]]; then
     #echo "--------------"
 
     ARGS="${@:1:$(($# - 1))}"  # strip last
-    ARGS="$(sed -r 's/ ?--provisioner-site[^ ]+//g' <<< "$ARGS" )"
     ARGS="$(sed -r 's/ ?--config-dir[^ ]+//g' <<< "$ARGS" )"
-    ARGS="$(sed -r 's/ ?--extra-vars provisioner.key_file=[^ ]*//g' <<< "$ARGS" )"
+    if [[ -z "$KEEP_PROV" ]]; then
+        ARGS="$(sed -r 's/ ?--provisioner-site[^ ]+//g' <<< "$ARGS" )"
+        ARGS="$(sed -r 's/ ?--extra-vars provisioner.key_file=[^ ]*//g' <<< "$ARGS" )"
+    fi
 
     #echo "--- stripped ---"
     #echo "$ARGS"
     #echo "----------------"
 
     ARGS="--config-dir=./settings $ARGS"
-    ARGS="$ARGS --provisioner-site=qeos"
-    ARGS="$ARGS --provisioner-site-user=psedlak"
-    ARGS="$ARGS --extra-vars provisioner.key_file=${HOME}/.ssh/rhos-jenkins"
+    if [[ -z "$KEEP_PROV" ]]; then
+        ARGS="$ARGS --provisioner-site=qeos"
+        ARGS="$ARGS --provisioner-site-user=psedlak"
+        ARGS="$ARGS --extra-vars provisioner.key_file=${HOME}/.ssh/rhos-jenkins"
+    fi
     ARGS="$ARGS --extra-vars tmp.node_prefix=${LABEL}-"
+    ARGS="$ARGS --extra-vars tmp.hostname_prefix=${LABEL}-"
     ARGS="$ARGS ${DEST_FILE}"
 else
     ARGS="$@"
