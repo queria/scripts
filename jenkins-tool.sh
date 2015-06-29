@@ -1,8 +1,15 @@
 #!/bin/bash
 
+### == jenkins-tool.sh [-j <jenkins-id>] <action> ==
+###
 ### Example usage:
+###
+###  jenkins-tool.sh [-j stage] exec <path/to/script.groovy>
+###   ~ execute custom groovy script (on specified [stage] jenkins)
+###
 ###  jenkins-tool.sh enable special-jobs [--do]
 ###   ~ enables all .*special-jobs.* on local(host) jenkins
+###
 ###  jenkins-tool.sh -j stage queue [pattern] [--do]
 ###   ~ remove all (without pattern) job runs currently waiting in the queue on 'stage' jenkins
 ###
@@ -28,10 +35,16 @@ JENKINS_local="http://localhost/"
 JENKINS="${JENKINS:-local}"
 CLIOPTS="${CLIOPTS:-}"
 
-[[ -f $HOME/.jenkins-tool.conf ]] && source $HOME/.jenkins-tool.conf
+CFG="$HOME/.jenkins-tool.conf"
+
+[[ -f "$CFG" ]] && source "$CFG"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --help|-h|help)
+            ACTION=""
+            break
+            ;;
         enable)
             ACTION=enable
             ;;
@@ -40,6 +53,12 @@ while [[ $# -gt 0 ]]; do
             ;;
         queue)
             ACTION=queue
+            ;;
+        exec)
+            ACTION=script
+            PREVIEW="false"
+            shift
+            SCRIPT=$1
             ;;
         -j|--jenkins)
             shift
@@ -55,6 +74,21 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
+if [[ -z "$ACTION" ]]; then
+    # show help
+    sed -nr "s/^###(.*)$/\1/p" "$0"
+    echo ""
+    echo "Configured jenkins connections:"
+    echo ""
+    if [[ -f "$CFG" ]]; then
+        cat $CFG
+    else
+        echo "No $CFG file yet!"
+    fi
+
+    exit 0
+fi
+
 URLVAR="JENKINS_${JENKINS}"
 URL="${!URLVAR}"
 if [[ -z "${URL}" ]]; then
@@ -69,13 +103,15 @@ EXTRAOPTS="$CLIOPTS $EXTRAOPTS"
 
 if [[ "$PREVIEW" = "true" ]]; then
     echo "Just preview, use --do to act. execute the change."
-elif [[ -z "$SEARCHFOR" ]]; then
+elif [[ -z "$SEARCHFOR" && "$ACTION" != "script" ]]; then
     read -p "Empty pattern, really run on all items? [yN]: " ANSWER
     [[ "$ANSWER" != "y" ]] && exit 0
 fi
 
-SCRIPT="$(mktemp)"
-trap "rm -f $SCRIPT" EXIT
+if [[ "$ACTION" != "script" ]]; then
+    SCRIPT="$(mktemp)"
+    trap "rm -f $SCRIPT" EXIT
+fi
 
 
 if [[ "$ACTION" = "enable" || "$ACTION" = "disable" ]]; then
@@ -117,9 +153,9 @@ fi
 
 CLI="$CLIDIR/$JENKINS-cli.jar"
 if [[ ! -x "$CLI" ]]; then
-    echo "Fetching cli.jar"
     CLIURL="$URL/jnlpJars/jenkins-cli.jar"
-    curl -o "$CLI" "$CLIURL"
+    echo "Fetching cli.jar from $CLIURL into $CLI"
+    curl -k -o "$CLI" "$CLIURL"
     chmod +x "$CLI"
 fi
 if ! head -n2 "$CLI" | grep -q 'META-INF/PK'; then
