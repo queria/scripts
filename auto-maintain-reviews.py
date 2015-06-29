@@ -44,6 +44,7 @@ config = {
     'owner': 'your-nick-or-mail',
     'branch': 'master',
     'lately_days': 1,
+    'rebase_max_cnt': -1,
     'the_reviewer': '',
 }
 
@@ -168,6 +169,10 @@ def should_be_rebased(change, force=False):
             debug('- is NOT THE DEBUG change')
             return False
 
+    if config['rebase_max_cnt'] == 0:
+        debug('- we have reached the config.rebase_max_cnt limit')
+        return False
+
     if not force and has_negative_cr(change):
         # info already in 'change'
         debug('- has negative review')
@@ -208,6 +213,7 @@ if __name__ == '__main__':
 
     all_open = list_changes('status:open')
     my_open = list_changes()
+    rebased = []
 
     for change in my_open:
         try:
@@ -218,6 +224,9 @@ if __name__ == '__main__':
                     rebase_change(change)
                 except subprocess.CalledProcessError:
                     debug('- rebase FAILED! maybe there is REAL CONFLICT?')
+                else:
+                    config['rebase_max_cnt'] -= 1
+                    rebased.append(change)
             if (config['the_reviewer']
                     and not has_reviewer(change, config['the_reviewer'])):
                 debug('- is missing the reviewer')
@@ -226,3 +235,4 @@ if __name__ == '__main__':
             config['debug'] = True
             debug('Exception %s with change %s' % (exc, change))
             raise
+    debug('Rebased %d changes in this run.' % len(rebased))
