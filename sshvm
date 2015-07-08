@@ -26,7 +26,7 @@ sudo=${sudo:-false};
 
 ssh="ssh";
 ssh="$ssh -i $(readlink -f $sshkey)";
-ssh="$ssh -o PreferredAuthentications=publickey,password";
+ssh="$ssh -o PreferredAuthentications=publickey";
 ssh="$ssh -o StrictHostKeyChecking=no";
 ssh="$ssh -o UserKnownHostsFile=/dev/null";
 
@@ -45,6 +45,9 @@ try_user() {
 echo -ne "Determining user ...\r" 1>&2;
 found="$(try_user "$host" "$usr")"
 [[ -z "$found" && "$usr" != "root" ]] && found="$(try_user "$host" "root")"
+[[ -z "$found" && "$usr" != "fedora" ]] && found="$(try_user "$host" "fedora")"
+[[ -z "$found" && "$usr" != "cloud-user" ]] && found="$(try_user "$host" "cloud-user")"
+[[ -z "$found" && "$usr" != "rhos-ci" ]] && found="$(try_user "$host" "rhos-ci")"
 
 if [[ -z "$found" ]]; then
     echo "FAILED to determine the remote user!" 1>&2;
