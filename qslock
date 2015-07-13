@@ -2,7 +2,7 @@
 UNLOCK=false
 if [[ "$1" = "-u" ]]; then UNLOCK=true; shift; fi
 
-if ! $UNLOCK && [[ "$1" != "forked" ]]; then
+if [[ ! -z "$DISPLAY" ]] && ! $UNLOCK && [[ "$1" != "forked" ]]; then
     $0 forked "$@" &
     exit 0
 fi
