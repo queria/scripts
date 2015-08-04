@@ -28,6 +28,7 @@ runcond clipit
 runcond qslock-auto
 #runcond qsrun
 runcond dunst
+runcond nm-applet
 #runcond compton -b
 
 fbsetbg -C $HOME/wallpaper.png
