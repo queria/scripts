@@ -1,0 +1,38 @@
+#!/bin/bash
+
+
+[[ -f test-play.hosts ]] || cat > test-play.hosts <<EOF
+[local]
+localhost ansible_connection=local
+
+[some-group]
+localhost
+EOF
+
+[[ -f test-play.settings ]] || cat > test-play.settings <<EOF
+---
+something: "Hello world"
+workarounds:
+    first:
+        enabled: false
+EOF
+
+
+[[ -f test-play.yaml ]] || cat > test-play.yaml <<EOF
+- hosts: localhost
+  name: "my test play"
+  gather_facts: no
+  sudo: no
+  tasks:
+      - debug: msg=hi
+        register: mytask
+      - debug: var=something
+        when: workarounds is defined
+      # your custom tasks
+EOF
+
+echo "You can now modify test-play.{hosts,settings,yaml} files"
+echo "(inventory, injected facts, playbook) and run it as:"
+echo ""
+echo "  ansible-playbook -vvvv -i test-play.hosts --extra-vars @test-play.settings test-play.yaml"
+echo ""
