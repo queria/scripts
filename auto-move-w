@@ -1,0 +1,12 @@
+#!/bin/bash
+
+sleep 0.4
+if [[ "$1" = "run" ]]; then
+    #echo "keydown Shift_L
+    #key w" | xte
+    #echo -e "keydown Shift_L\nkeydown w" | xte
+    xte 'keydown W'
+    #'keydown Shift_L'
+else
+    xte 'keydown w'
+fi

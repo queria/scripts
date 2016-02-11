@@ -1,0 +1,31 @@
+#!/bin/bash
+
+#### echo "Me: $0 => $$"
+#### ps -ef|grep "$$"
+#### echo "==========="
+
+# Find if we are already running
+# and if so 'quit' instead of starting
+
+PG_OUT="$(pgrep -f -x "/bin/bash $0")"
+OTHERS="$(grep -v "^$$\$" <<< "$PG_OUT")"
+if [[ ! -z "$OTHERS" ]]; then
+    #### echo "Going to quit ..."
+    #### echo "PGrep: $OTHERS"
+    #### ps -ef|grep "$OTHERS"
+    #### echo "==========="
+
+    for O_PID in $OTHERS; do
+        kill $O_PID
+    done
+    exit 0
+fi
+
+#### echo "Doing some work loop here ..."
+#### ps -ef|grep multicl
+
+cmd="mouseclick 1\nusleep 130000"
+#cmd="key a\nusleep 430000"
+while true; do
+    echo -e "$cmd" | xte
+done
