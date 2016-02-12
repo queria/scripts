@@ -6,5 +6,7 @@ do
     #echo "$(nowplaying) | $(free -m|grep 'rs\/c'|awk '{print $4}') | $line"
     mem="$(sed -rn 's/(MemAva|SwapFre).* +([0-9]+) .*/\2/p' /proc/meminfo)"
     mem="$(for X in $mem; do echo "scale=0; $X / 1024" | bc; done)"
-    echo "$(nowplaying) | $(echo $mem) | $line"
+    nowp="$(nowplaying | sed 's/&/&amp;/g')"
+    [[ "${#nowp}" -gt 77 ]] && nowp="...${nowp:(-74)}"
+    echo "$nowp | $(echo $mem) | $line"
 done
