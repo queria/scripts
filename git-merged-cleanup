@@ -79,7 +79,7 @@ fi
 echo "==Already merged branches based on change-id:=="
 for BRANCH in $MERGED; do
     echo "--[ $BRANCH ]--";
-    git log -1 $BRANCH
+    PAGER= git log -1 $BRANCH
 done
 echo ""
 echo ""
