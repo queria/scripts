@@ -32,3 +32,4 @@ runcond nm-applet
 #runcond compton -b
 
 fbsetbg -C $HOME/wallpaper.png
+xset s off
