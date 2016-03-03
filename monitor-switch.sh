@@ -19,7 +19,7 @@ CONFIG=$1
 if [[ -z "$CONFIG" ]]; then
     if [[ "$(grep " connected " <<<"$XROUT" | wc -l)" = "1" ]]; then
         CONFIG=default
-    elif grep -q "HDMI3 connected" <<<"$XROUT"; then
+    elif grep -q "DP2-2 connected" <<<"$XROUT"; then
         CONFIG=work
     elif grep -q "VGA1 connected" <<<"$XROUT"; then
         EXTRA_ID=$(md5sum /sys/class/drm/card0-VGA-1/edid | cut -f1 -d' ')
@@ -56,7 +56,7 @@ case $CONFIG in
         xrandr --output VGA1 --auto --primary --output $DEFAULT --off
         ;;
     work)
-        xrandr --output HDMI3 --auto --above $DEFAULT --output $DEFAULT --auto --primary
+        xrandr --output DP2-2 --auto --right-of $DEFAULT --output $DEFAULT --auto --primary
         ;;
     present)
         xrandr --output VGA1 --auto --left-of $DEFAULT --output $DEFAULT --auto --primary
