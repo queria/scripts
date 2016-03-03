@@ -3,7 +3,7 @@
 
 USERBR=""
 RUNNING=false
-BROWSERS=( nightly aurora firefox chrome chromium-browser qupzilla opera )
+BROWSERS=( aurora nightly firefox chrome chromium-browser qupzilla opera )
 CMDS=()
 
 
@@ -58,5 +58,5 @@ else
         -i 'internet-web-browser' \
         -c 'error' \
         'Browser not found!' \
-        'Browser autodetection failed.'
+        "Browser autodetection failed. (choice would be: $USERBR)"
 fi
