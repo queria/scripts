@@ -3,9 +3,10 @@
 sessname="myterms"
 termapp="xterm"
 which urxvt &> /dev/null && termapp=urxvt
-which urxvtc &> /dev/null && ps -fu psedlak -U psedlak|grep urxvtd|grep -qv grep && termapp=urxvtc
+which urxvtc &> /dev/null && ps -fu $USER -U $USER|grep urxvtd|grep -qv grep && termapp=urxvtc
+[[ "$1" = "--pretend" ]] && DBG=echo && shift || DBG=
 
-screen -D -S $sessname
+$DBG screen -D -S $sessname
 for WIN in $(screen -S $sessname -Q windows | sed "s/  /\n/g" | sed -nr "s/^([0-9]+).*/\1/p"); do
-    $termapp -e screen -S $sessname -x -p $WIN
+    $DBG $termapp -e screen -S $sessname -x -p $WIN
 done
