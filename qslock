@@ -27,6 +27,7 @@ if [[ -z "$DISPLAY" ]]; then
 else
     if $UNLOCK; then
         pkill i3lock;
+        #pkill kscreenlocker_greet
         xset -display :0.0 dpms force on;
         exit;
     fi
@@ -34,12 +35,14 @@ else
         echo "Unable to find i3lock!" >&2
         exit 1
     fi
-    qdbus-qt5 org.kde.konversation /irc org.kde.konversation.setAway 'AFK' &> /dev/null
+    [[ "$2" != "noirc" ]] && qdbus-qt5 org.kde.konversation /irc org.kde.konversation.setAway 'AFK' &> /dev/null
+    bash -c 'sleep 1; xset -display :0.0 dpms force standby' &
     i3lock \
         --nofork \
-        -p default \
-        \ #-c ff2222 \
         -i /all/pictures/wall/danger/dark_cyber___by_steelgohst_by_steelgohst-d5hnyrs.png \
-        -d #dpms
-    qdbus-qt5 org.kde.konversation /irc org.kde.konversation.setBack &> /dev/null
+        -c 000000 \
+        -p default
+        # -d #dpms
+    #/usr/libexec/kscreenlocker_greet --immediateLock
+    [[ "$2" != "noirc" ]] && qdbus-qt5 org.kde.konversation /irc org.kde.konversation.setBack &> /dev/null
 fi
