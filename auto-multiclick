@@ -24,7 +24,7 @@ fi
 #### echo "Doing some work loop here ..."
 #### ps -ef|grep multicl
 
-cmd="mouseclick 1\nusleep 130000"
+cmd="mouseclick 1\nusleep 60000"
 #cmd="key a\nusleep 430000"
 while true; do
     echo -e "$cmd" | xte

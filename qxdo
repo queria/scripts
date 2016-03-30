@@ -25,7 +25,7 @@ case "$TYPE" in
         while true; do
             #xdotool search --name "Nightly" click --repeat 3000 --delay 24 1
             #xdotool click --repeat 3000 --delay 193 1
-            xdotool mousedown 1 sleep 0.118 mouseup 1
+            xdotool mousedown 1 sleep 0.038 mouseup 1
             sleep 0.03
         done
     ;;
