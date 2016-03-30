@@ -6,7 +6,7 @@ xset dpms 0 0 0
 [[ -f /usr/share/X11/xkb/symbols/vok ]] && setxkbmap vok
 
 TPNAME=$(xinput list|grep 'TrackPoint'|sed "s/^\W*\(\w.*\w\)\W*id=.*$/\1/")
-if [[ ! -z "$TPNAME" ]]; then
+if [[ ! -z "$TPNAME" ]] && xinput list-props "$TPNAME" |& grep -q 'Evdev Wheel Emul'; then
     xinput set-prop "$TPNAME" 'Evdev Wheel Emulation Timeout' 300
     xinput set-prop "$TPNAME" 'Evdev Wheel Emulation Button' 2
     xinput set-prop "$TPNAME" 'Evdev Wheel Emulation' 1
@@ -31,5 +31,5 @@ runcond dunst
 runcond nm-applet
 #runcond compton -b
 
-fbsetbg -C $HOME/wallpaper.png
+wpsetters=feh fbsetbg -C $HOME/wallpaper.png
 xset s off
