@@ -1,0 +1,27 @@
+#!/bin/bash
+sessname="myterms"
+termapp="urxvtc"
+
+[[ -z "$1" ]] && echo "Please specify target machine for ssh!" >&2 && exit 1
+MACHINE="$1" && shift
+
+[[ "$1" = "--pretend" ]] && DBG=echo && shift || DBG=
+
+unset LINES
+IFS_ORIG="$IFS"
+IFS=$'\n'
+LINES=( $(ssh $MACHINE scrr2urxvt --pretend) )
+IFS="$IFS_ORIG"
+
+LN=0
+while [[ $LN -lt ${#LINES[@]} ]]; do
+    LINE="${LINES[$LN]}"
+    LN=$(( $LN + 1 ))
+    [[ -z "$LINE" ]] && continue
+
+    if [[ "$LINE" =~ ^screen* ]]; then
+        $DBG ssh $MACHINE "$LINE";
+    else
+        $DBG $termapp -e ssh -t $MACHINE "${LINE/$termapp -e}";
+    fi;
+done
