@@ -13,6 +13,11 @@ if [[ ! -z "$TPNAME" ]] && xinput list-props "$TPNAME" |& grep -q 'Evdev Wheel E
     xinput set-prop "$TPNAME" 'Evdev Wheel Emulation Axes' 6 7 4 5
     xinput set-prop "$TPNAME" 'Device Accel Profile' 3
     xinput set-prop "$TPNAME" 'Device Accel Velocity Scaling' 50
+else
+    TPNAME=$(xinput list|grep 'Synaptics TouchPad'|sed "s/^\W*\(\w.*\w\)\W*id=.*$/\1/")
+    if [[ ! -z "$TPNAME" ]]; then
+        xinput set-prop "$TPNAME" 'Synaptics Tap Action' 0 0 0 0 1 3 0
+    fi
 fi
 
 runcond() {
