@@ -1,0 +1,7 @@
+#!/bin/bash
+read -p "Please paste json-ish output from failed ansible with-items task here now..." CONTENT
+
+inp=$(sed -r "s/.*\(item=(.*)\) => \{.*/\\1/" <<<"${CONTENT}")
+out=$(sed -r "s/.*\(item=.*\) => (\{.*)/\\1/" <<<"${CONTENT}")
+echo "import pprint; a=${inp}; pprint.pprint(a)" | python
+python -m json.tool <<<"${out}"
