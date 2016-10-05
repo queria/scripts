@@ -1,6 +1,19 @@
 #!/bin/bash
 
+## Populates $PWD with example ansible-playbook/hosts/settings structure files,
+## and utility helpers to ./run ./edit and ./clean these files.
 
+cat > run <<"UPPEREOF"
+#!/bin/bash
+test_play_wrap="$(basename "$0")"
+test_play_dir="$(dirname "$(readlink -f "$0")")"
+
+cd $test_play_dir
+TEST_PLAY_FILES="./test-play.yaml ./test-play.settings ./test-play.hosts"
+
+
+test_play_init() {
+    set +x
 [[ -f test-play.hosts ]] || cat > test-play.hosts <<EOF
 [local]
 localhost ansible_connection=local
@@ -17,7 +30,6 @@ workarounds:
         enabled: false
 EOF
 
-
 [[ -f test-play.yaml ]] || cat > test-play.yaml <<EOF
 - hosts: localhost
   name: "my test play"
@@ -31,8 +43,42 @@ EOF
       # your custom tasks
 EOF
 
-echo "You can now modify test-play.{hosts,settings,yaml} files"
-echo "(inventory, injected facts, playbook) and run it as:"
+echo "You can now MODIFY test-play.{hosts,settings,yaml} files"
+echo "(inventory, injected facts, playbook) or use helper:"
 echo ""
+echo " ./edit"
+echo ""
+echo "End you can also run these as:"
 echo "  ansible-playbook -vvvv -i test-play.hosts --extra-vars @test-play.settings test-play.yaml"
+echo "or use helper:"
 echo ""
+echo " ./run"
+echo ""
+echo "To reset these test-play.* files use:  ./clean"
+}
+
+
+test_play_clean() {
+    rm -f $TEST_PLAY_FILES;
+    test_play_init
+}
+
+
+test_play_run() {
+    ansible-playbook -vvvv -i test-play.hosts --extra-vars @test-play.settings test-play.yaml;
+}
+
+
+test_play_edit() {
+    vim -p $TEST_PLAY_FILES
+}
+
+set -x
+test_play_${test_play_wrap/.sh}
+UPPEREOF
+
+chmod +x ./run
+ln -snf ./run init
+ln -snf ./run clean
+ln -snf ./run edit
+./init
