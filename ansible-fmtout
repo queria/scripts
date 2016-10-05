@@ -1,7 +1,20 @@
 #!/bin/bash
-read -p "Please paste json-ish output from failed ansible with-items task here now..." CONTENT
+read -r -p "Please paste json-ish output from failed ansible with-items task here now..." CONTENT
 
-inp=$(sed -r "s/.*\(item=(.*)\) => \{.*/\\1/" <<<"${CONTENT}")
-out=$(sed -r "s/.*\(item=.*\) => (\{.*)/\\1/" <<<"${CONTENT}")
-echo "import pprint; a=${inp}; pprint.pprint(a)" | python
-python -m json.tool <<<"${out}"
+inp=$(sed -nr "s/.*\(item=(.*)\) => \{.*/\\1/p" <<<"${CONTENT}")
+out=$(sed -nr "s/.*\(item=.*\) => (\{.*)/\\1/p" <<<"${CONTENT}")
+
+if [[ -z "$inp" && -z "$out" ]]; then
+    echo "== No output json found, parsing for input only =="
+    inp=$(sed -nr "s/.*\(item=(.*)\)/\\1/p" <<<"${CONTENT}")
+fi
+if [[ -z "$inp" ]]; then
+    echo "Trying to handle input as raw json output."
+    out="${CONTENT}"
+fi
+echo -e "\n\n"
+echo "=== INPUT ==="
+echo "import pprint; a=${inp}; pprint.pprint(a)" | python | sed -r 's/\\n/\n/g'
+echo -e "\n\n"
+echo "=== OUTPUT ==="
+python -m json.tool <<<"${out}" | sed -r 's/\\n/\n/g'
