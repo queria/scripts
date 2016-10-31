@@ -3,7 +3,7 @@
 
 USERBR=""
 RUNNING=false
-BROWSERS=( chromium aurora nightly firefox chrome chromium-browser qupzilla opera )
+BROWSERS=( chrome chromium aurora nightly firefox chrome chromium-browser qupzilla opera )
 CMDS=()
 
 
