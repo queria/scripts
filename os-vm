@@ -1,0 +1,75 @@
+#!/bin/bash
+set -ex
+# name of our custom user/tenant/network/vm/ ... all
+BLAH=blah
+# name of public (external) network in neutron
+PUBNET=public
+# dns to be passed to our vm to use
+DNS=${DNS:-$(cat /etc/resolv.conf |sed -nr 's/^nameserver +//p'|head -n1)}
+CIRROS_URL=${CIRROS_URL:-http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-x86_64-disk.img}
+CIRROS_FILE="${CIRROS_FILE:-/tmp/$BLAH-cirros.img}"
+VMNAME="${VMNAME:-$BLAH}"
+
+if [[ "${INIT:-yes}" = "yes" && "${ADMIN_INIT:-yes}" = "yes" ]]; then
+	openstack project create --or-show $BLAH
+	openstack user create --or-show --password $BLAH --project $BLAH $BLAH
+	if ! openstack flavor show m666.$BLAH; then
+		openstack flavor create --ram 64 --vcpus 1 m666.$BLAH
+	fi
+fi
+
+export OS_USERNAME=$BLAH
+export OS_TENANT_NAME=$BLAH
+export OS_PASSWORD=$BLAH
+
+if [[ "${INIT:-yes}" = "yes" ]]; then
+	if ! openstack keypair show $BLAH; then
+		openstack keypair create --public-key $HOME/.ssh/id_rsa.pub $BLAH
+	fi
+	if ! openstack security group list default | grep -q tcp | grep -q 65535; then
+		openstack security group rule create --ingress --protocol tcp --dst-port 1:65535 default
+		openstack security group rule create --ingress --protocol icmp default
+	fi
+	if ! openstack network show $BLAH; then
+		openstack network create blah
+	fi
+	if ! openstack subnet show $BLAH; then
+		openstack subnet create --subnet-range 192.168.42.0/24 --network $BLAH --dns-nameserver $DNS $BLAH
+	fi
+	if ! openstack router show $BLAH; then
+		openstack router create $BLAH
+		neutron router-gateway-set $BLAH $PUBNET
+	fi
+	if ! openstack port list --router blah | grep -q ip_addr; then
+		openstack router add subnet blah blah
+	fi
+	if ! openstack image show ${BLAH}-cirros; then
+		#if [[ ! -f /tmp/$BLAH-cirros.img ]]; then
+		if ! curl -4 -o "$CIRROS_FILE" -z "$CIRROS_FILE" "$CIRROS_URL"; then
+			rm -f "$CIRROS_FILE"
+			exit 1
+		fi
+
+		openstack image create --container-format bare --disk-format qcow2 --min-disk 0 --min-ram 0 --file ${CIRROS_FILE} ${BLAH}-cirros
+	fi
+fi
+if openstack server show $VMNAME; then
+	read -p "VM Already exists, delete? [yN] " CONFIRM
+	if [[ "$CONFIRM" = "y" ]]; then
+		openstack server delete ${VMNAME}
+	else
+		exit 1
+	fi
+fi
+NETID=$(openstack network show -f value -c id $BLAH)
+FLIP=$(openstack floating ip create -f value -c floating_ip_address $PUBNET)
+openstack server create --image ${BLAH}-cirros --key-name $BLAH --security-group default --flavor m666.${BLAH} --nic net-id=${NETID} $VMNAME
+openstack server add floating ip $VMNAME $FLIP
+
+#read -p "Delete all floating ips which are not associated? [Yn] " CONFIRM_DELETE_UNUSED
+#if [[ "$CONFIRM_DELETE_UNUSED" != "n" ]]; then
+#	FLIP_LIST=$(openstack floating ip list -f json)
+#	FLIP_UNUSED=$(python -c 'import json; import sys; print " ".join([f["ID"] for f in json.load(sys.stdin) if (not f["Port"] or not f["Fixed IP Address"])])' <<<"$FLIP_LIST")
+#	openstack floating ip delete $FLIP_UNUSED
+#fi
+

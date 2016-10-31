@@ -1,0 +1,17 @@
+#!/bin/bash
+ASUSER=${ASUSER:-heat-admin}
+NAME="$1"
+shift
+NODENUMS="$1"
+shift
+
+SSHOPTS=""
+SSHOPTS="${SSHOPTS} -o GSSAPIAuthentication=no "
+SSHOPTS="${SSHOPTS} -o CheckHostIP=no"
+SSHOPTS="${SSHOPTS} -o StrictHostKeyChecking=no"
+SSHOPTS="${SSHOPTS} -o UserKnownHostsFile=/dev/null"
+
+for NODENUM in $(seq $NODENUMS); do
+    echo "%%%%%%%%%%%%%%%%%   $NAME-$NODENUM   %%%%%%%%%%%%%"
+    ssh $SSHOPTS $ASUSER@$NAME-$NODENUM sudo "$*"
+done
