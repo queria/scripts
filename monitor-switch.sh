@@ -56,7 +56,7 @@ case $CONFIG in
         xrandr --output VGA1 --auto --primary --output $DEFAULT --off
         ;;
     work)
-        xrandr --output DP2-2 --auto --above $DEFAULT --output $DEFAULT --auto --primary
+        xrandr --output DP2-2 --auto --right-of $DEFAULT --output $DEFAULT --auto --primary
         ;;
     present)
         xrandr --output VGA1 --auto --left-of $DEFAULT --output $DEFAULT --auto --primary
