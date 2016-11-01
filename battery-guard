@@ -2,18 +2,28 @@
 
 BAT="$(which battery 2>/dev/null)"
 
+get_dbus_sess() {
+    eval "export $(grep -z DBUS_SESSION_BUS_ADDRESS /proc/$(pgrep -u $USER i3|head -n1)/environ)";
+}
+
 if [[ -z "$BAT" ]]; then
     BAT="$(dirname $(readlink -f "$0"))/battery"
 fi
 
 if [[ ! -x "$BAT" ]]; then
-    wall <<<"battery-guard could not find battery script!"
+    get_dbus_sess
+    notify-send -a 'battery-guard' \
+        'Battery script not found!' \
+        "Unable to find script for battery monitoring."
 fi
 
 TOTAL=$($BAT --total)
 if [[ $TOTAL -lt 4 ]]; then
     AC_PLUGGED="$(cat /sys/class/power_supply/AC/online 2>/dev/null)"
     [[ "$AC_PLUGGED" = "1" ]] && exit 0
-    wall <<<"battery-guard: suspending due to very low power!"
-    sudo pm-suspend
+    get_dbus_sess
+    notify-send -a 'battery-guard' \
+        'Low battery power!' \
+        'Suspending the system due to very low battery power!'
+    sudo /usr/bin/systemctl suspend
 fi
