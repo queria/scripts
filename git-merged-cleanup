@@ -12,7 +12,7 @@ if [[ "$1" == "--help" ]]; then
     echo " for you to just copy-paste+run."
     echo ""
     echo "You can put name of branches you want to ALWAYS keep"
-    echo "in the ~/.git-merged-cleanup.conf (one branch per line)"
+    echo "in the ~/.git-merged-cleanup.conf (content like KEEP_BRANCHES='my extra branches')"
     exit 0
 fi
 
@@ -35,7 +35,7 @@ contains() {
 THEBRANCH="${1:-master}"
 KEEP_BRANCHES=""
 if [[ -f ~/.git-merged-cleanup.conf ]]; then
-    KEEP_BRANCHES="$(cat ~/.git-merged-cleanup.conf)"
+    source "$HOME/.git-merged-cleanup.conf"
 fi
 
 echo "Using branch $THEBRANCH as the one with merged changes..."
@@ -61,13 +61,14 @@ BRANCHES="$(git branch | strip_brmark | grep -vE "^${THEBRANCH}$")"
 
 MERGED=""
 for BRANCH in $BRANCHES; do
-    if contains "$BRANCH" $KEEP_BRANCHES; then
-        echo "Keeping branch $BRANCH"
-        continue
-    fi
     CHID="$(git log -1 "$BRANCH" | grep_changeid)"
     if [[ ! -z "$CHID" ]] && contains $CHID $MERGED_CHANGES; then
-        MERGED="${MERGED} ${BRANCH}"
+        if contains "$BRANCH" $KEEP_BRANCHES; then
+            echo "Keeping branch $BRANCH"
+            continue
+        else
+            MERGED="${MERGED} ${BRANCH}"
+        fi
     fi
 done
 
