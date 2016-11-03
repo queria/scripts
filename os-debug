@@ -1,0 +1,8 @@
+#!/bin/bash
+
+yum=$(command -v dnf yum | head -n1)
+sudo $yum install -y \
+    vim-enhanced \
+    strace \
+    htop
+

@@ -26,7 +26,7 @@ if [[ "${INIT:-yes}" = "yes" ]]; then
 	if ! openstack keypair show $BLAH; then
 		openstack keypair create --public-key $HOME/.ssh/id_rsa.pub $BLAH
 	fi
-	if ! openstack security group list default | grep -q tcp | grep -q 65535; then
+	if ! openstack security group rule list default | grep -q tcp | grep -q 65535; then
 		openstack security group rule create --ingress --protocol tcp --dst-port 1:65535 default
 		openstack security group rule create --ingress --protocol icmp default
 	fi
@@ -65,6 +65,12 @@ NETID=$(openstack network show -f value -c id $BLAH)
 FLIP=$(openstack floating ip create -f value -c floating_ip_address $PUBNET)
 openstack server create --image ${BLAH}-cirros --key-name $BLAH --security-group default --flavor m666.${BLAH} --nic net-id=${NETID} $VMNAME
 openstack server add floating ip $VMNAME $FLIP
+
+MAXATT=15
+while [[ $MAXATT -gt 0 ]]; do ping -c 1 $FLIP && break || sleep 1; MAXATT=$(( $MAXATT - 1 )); done
+MAXATT=15
+SSHOPTS="-o CheckHostIP=no -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+while [[ $MAXATT -gt 0 ]]; do ssh $SSHOPTS cirros@$FLIP 'uname -a' && break || sleep 1; MAXATT=$(( $MAXATT - 1 )); done
 
 #read -p "Delete all floating ips which are not associated? [Yn] " CONFIRM_DELETE_UNUSED
 #if [[ "$CONFIRM_DELETE_UNUSED" != "n" ]]; then

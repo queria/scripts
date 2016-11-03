@@ -1,0 +1,4 @@
+#!/bin/bash
+for VM in $(virsh list --name --all); do
+    virsh domifaddr $VM | sed -rn "s/.* ipv[46] +/$VM /p";
+done
