@@ -1,0 +1,5 @@
+#!/bin/bash
+# data ifc as that's eth0 inside
+for VM in $(virsh list --name --all); do
+    virsh domiflist $VM | sed -nr "s/.* data .* virtio +(.*)/\1\t$VM/p";
+done
