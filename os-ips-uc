@@ -1,0 +1,14 @@
+#!/bin/bash
+if [[ "$OS_CLOUDNAME" != "undercloud" ]]; then
+    if [[ -e $HOME/stackrc ]]; then
+        source $HOME/stackrc
+    elif [[ -e /home/stack/stackrc ]]; then
+        source $HOME/stackrc
+    fi
+    if [[ "$OS_CLOUDNAME" != "undercloud" ]]; then
+        echo "To use this, source undercloud rc file." >&2
+        exit 1
+    fi
+fi
+
+nova list | sed -nr 's/\| +[0-9a-z-]+ +\| ([^ ]+) +\|.*=([0-9\.]+) +\|/\2\t\1/p'
