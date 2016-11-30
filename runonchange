@@ -24,6 +24,21 @@ NEWSUM=
 
 NOTIFYOPTS="-e DELETE_SELF"
 
+SENDNOTIFY=false
+if hash notify-send 2>/dev/null; then
+    SENDNOTIFY=true
+    source  $HOME/.dbus/session-bus/*-0 || SENDNOTIFY=false
+    if [[ "$SENDNOTIFY" = "true" ]]; then
+        eval "$(cat /proc/$DBUS_SESSION_BUS_PID/environ | grep -z ^DISPLAY=)" || SENDNOTIFY=false
+        export DBUS_SESSION_BUS_ADDRESS DISPLAY
+    fi
+    if [[ "$SENDNOTIFY" = "true" ]]; then
+        echo "# status report via dbus notifications enabled"
+    else
+        echo "# status report via dbus notifications disabled\!"
+    fi
+fi
+
 while inotifywait $NOTIFYOPTS $FILE > /dev/null 2>&1;
 do
   NEWSUM=$($SUMMER $FILE)
@@ -33,7 +48,15 @@ do
     echo ""
     echo "-------------[  running on change  ]-----------"
     eval "$@"
+    eval_rc="$?"
     echo "-----------------------------------------------"
+    if [[ "$SENDNOTIFY" = "true" ]]; then
+        if [[ "$eval_rc" = "0" ]]; then
+            notify-send -a "runonchange" -t 130 -u low "OK" "$*"
+        else
+            notify-send -a "runonchange" -t 230 -u critical "FAIL" "$*"
+        fi
+    fi
   fi
 done
 
