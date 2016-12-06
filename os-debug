@@ -7,3 +7,6 @@ sudo $yum install -y \
     strace \
     htop
 
+if [[ ! "$PATH" =~ "$HOME/scripts" ]]; then
+	echo 'export PATH="$PATH:$HOME/scripts"' >> $HOME/.bashrc
+fi
