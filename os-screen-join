@@ -1,0 +1,14 @@
+#!/bin/bash
+screen_pid=${1:-$(screen -list | sed -rn 's/\s+([0-9]+).pts.*/\1/p')}
+
+if [[ -z "$screen_pid" ]]; then
+	echo "Found no existing screen session."
+	exit 1
+fi
+if [[ $(wc -l <<<"$screen_pid") -gt 1 ]]; then
+	echo "Too many screen sessions - fix it or specify which one to join."
+	exit 2
+fi
+
+set -x
+screen -S $screen_pid -x
