@@ -1,0 +1,1 @@
+ssh -F /root/.quickstart/ssh.config.ansible undercloud
