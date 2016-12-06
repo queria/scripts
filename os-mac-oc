@@ -23,4 +23,4 @@ while read VMIP; do
     else
         ssh heat-admin@$VMIP 'echo "$(hostname)  $(/usr/sbin/ip l show dev eth0|sed -nr "s/.*\/ether //p")"'
     fi
-do < <(nova list | sed -nr 's/.*ctlplane=(\S+).*/\1/p')
+done < <(nova list | sed -nr 's/.*ctlplane=(\S+).*/\1/p')
