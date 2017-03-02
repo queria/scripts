@@ -26,7 +26,7 @@ runcond() {
     fi
 }
 
-pulseaudio -D
+pulseaudio -D -L module-cli-protocol-unix
 urxvtd -f -o
 runcond clipit
 #runcond xosd-sysmon
