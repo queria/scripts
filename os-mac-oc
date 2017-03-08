@@ -1,14 +1,16 @@
 #!/bin/bash
+# vim: set noet sw=4 ts=4:
+
 if [[ "$OS_CLOUDNAME" != "undercloud" ]]; then
-    if [[ -e $HOME/stackrc ]]; then
-        source $HOME/stackrc
-    elif [[ -e /home/stack/stackrc ]]; then
-        source $HOME/stackrc
-    fi
-    if [[ "$OS_CLOUDNAME" != "undercloud" ]]; then
-        echo "To use this, source undercloud rc file." >&2
-        exit 1
-    fi
+	if [[ -e $HOME/stackrc ]]; then
+		source $HOME/stackrc
+	elif [[ -e /home/stack/stackrc ]]; then
+		source $HOME/stackrc
+	fi
+	if [[ "$OS_CLOUDNAME" != "undercloud" ]]; then
+		echo "To use this, source undercloud rc file." >&2
+		exit 1
+	fi
 fi
 
 SSHOPTS=""
@@ -18,9 +20,9 @@ SSHOPTS="${SSHOPTS} -o StrictHostKeyChecking=no"
 SSHOPTS="${SSHOPTS} -o UserKnownHostsFile=/dev/null"
 
 while read VMIP; do
-    if [[ "$USER" != "stack" ]]; then
-        su stack -c ssh heat-admin@$VMIP 'echo "$(hostname)  $(/usr/sbin/ip l show dev eth0|sed -nr "s/.*\/ether //p")"'
-    else
-        ssh heat-admin@$VMIP 'echo "$(hostname)  $(/usr/sbin/ip l show dev eth0|sed -nr "s/.*\/ether //p")"'
-    fi
+	if [[ "$USER" != "stack" ]]; then
+		su stack -c ssh heat-admin@$VMIP 'echo "$(hostname)  $(/usr/sbin/ip l show dev eth0|sed -nr "s/.*\/ether //p")"'
+	else
+		ssh heat-admin@$VMIP 'echo "$(hostname)  $(/usr/sbin/ip l show dev eth0|sed -nr "s/.*\/ether //p")"'
+	fi
 done < <(nova list | sed -nr 's/.*ctlplane=(\S+).*/\1/p')

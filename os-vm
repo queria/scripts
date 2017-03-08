@@ -1,4 +1,6 @@
 #!/bin/bash
+# vim: set noet sw=4 ts=4:
+
 set -ex
 # name of our custom user/tenant/network/vm/ ... all
 BLAH=blah

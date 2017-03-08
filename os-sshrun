@@ -1,4 +1,6 @@
 #!/bin/bash
+# vim: set noet sw=4 ts=4:
+
 ASUSER=${ASUSER:-heat-admin}
 NAME="$1"
 shift
@@ -12,6 +14,6 @@ SSHOPTS="${SSHOPTS} -o StrictHostKeyChecking=no"
 SSHOPTS="${SSHOPTS} -o UserKnownHostsFile=/dev/null"
 
 for NODENUM in $(seq $NODENUMS); do
-    echo "%%%%%%%%%%%%%%%%%   $NAME-$NODENUM   %%%%%%%%%%%%%"
-    ssh $SSHOPTS $ASUSER@$NAME-$NODENUM sudo "$*"
+	echo "%%%%%%%%%%%%%%%%%   $NAME-$NODENUM   %%%%%%%%%%%%%"
+	ssh $SSHOPTS $ASUSER@$NAME-$NODENUM sudo "$*"
 done

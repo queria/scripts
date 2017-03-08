@@ -1,4 +1,6 @@
 #!/bin/bash
+# vim: set noet sw=4 ts=4:
+
 for VM in $(virsh list --name --all); do
-    virsh domifaddr $VM | sed -rn "s/.* ipv[46] +(.*)\/.*/\1\t$VM/p"
+	virsh domifaddr $VM | sed -rn "s/.* ipv[46] +(.*)\/.*/\1\t$VM/p"
 done
