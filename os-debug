@@ -5,7 +5,11 @@ sudo $yum install -y \
     vim-enhanced \
     screen \
     strace \
+    tcpdump \
+    bind-utils \
     htop
+
+[[ -f "$HOME/.ssh/id_rsa" ]] || ssh-keygen -q -t rsa -N '' -f $HOME/.ssh/id_rsa
 
 if [[ ! "$PATH" =~ "$HOME/scripts" ]]; then
 	echo 'export PATH="$PATH:$HOME/scripts"' >> $HOME/.bashrc
