@@ -1,20 +1,97 @@
 #!/bin/bash
-read -r -p "Please paste json-ish output from failed ansible with-items task here now..." CONTENT
 
-inp=$(sed -nr "s/.*\(item=(.*)\) => \{.*/\\1/p" <<<"${CONTENT}")
-out=$(sed -nr "s/.*\(item=.*\) => (\{.*)/\\1/p" <<<"${CONTENT}")
+if [[ "$*" =~ --debug ]]; then
+    dbg() { echo "$@"; }
+else
+    dbg() { : ; }
+fi
 
-if [[ -z "$inp" && -z "$out" ]]; then
-    echo "== No output json found, parsing for input only =="
-    inp=$(sed -nr "s/.*\(item=(.*)\)/\\1/p" <<<"${CONTENT}")
-fi
-if [[ -z "$inp" ]]; then
-    echo "Trying to handle input as raw json output."
-    out="${CONTENT}"
-fi
-echo -e "\n\n"
-echo "=== INPUT ==="
-echo "import pprint; a=${inp}; pprint.pprint(a)" | python | sed -r 's/\\n/\n/g'
-echo -e "\n\n"
-echo "=== OUTPUT ==="
-python -m json.tool <<<"${out}" | sed -r 's/\\n/\n/g'
+while read -r -p "Please paste json-ish output from failed ansible with-items task here now..." CONTENT; do
+    if [[ "$CONTENT" =~ ^[[:space:]]*$ ]]; then
+        echo ""
+        dbg "== skipping empty line =="
+        continue
+    fi
+
+    #|\S.*m)
+    #|\S.*m)
+    dbg "~~~~~~~~~~~~~~~~~~~~"
+    dbg "$CONTENT"
+    dbg "~~~~~~~~~~~~~~~~~~~~"
+
+    esc_char=""
+    PLAINCONTENT=$(sed -r "s/${esc_char}\[[0-9;]+m//g" <<<"${CONTENT}")
+
+    dbg "== Obtaining changed-state and host =="
+    state=$(sed -nr "s/^([a-z]+): .* => .*/\\1/p" <<<"${PLAINCONTENT}")
+    thost=$(sed -nr "s/^[a-z]+: \[(.*)\] => .*/\\1/p" <<<"${PLAINCONTENT}")
+
+    dbg "== Trying to handles as item's input and output =="
+    inp=$(sed -nr "s/.*\(item=(.*)\) => \{.*/\\1/p" <<<"${PLAINCONTENT}")
+    out=$(sed -nr "s/.*\(item=.*\) => (\{.*)/\\1/p" <<<"${PLAINCONTENT}")
+
+    if [[ -z "$inp" && -z "$out" ]]; then
+        dbg "== Trying to handle as item's input only =="
+        inp=$(sed -nr "s/.*\(item=(.*)\)/\\1/p" <<<"${PLAINCONTENT}")
+    fi
+    if [[ -z "$inp" ]]; then
+        dbg "== Trying to handle input as regular task line =="
+        out=$(sed -nr "s/.*\[.*\] => (\{.*)/\\1/p" <<<"${PLAINCONTENT}")
+    fi
+    if [[ -z "$out" ]]; then
+        dbg "== Trying to handle input as raw json output =="
+        out="${PLAINCONTENT}"
+    fi
+    FINP=""
+    if [[ -n "$inp" ]]; then
+        dbg "~~~~~~~~~~~~ input is"
+        dbg "${inp}"
+        if [[ "${inp}" =~ ^\{ ]]; then
+            FINP=$(echo "import pprint; a=${inp}; pprint.pprint(a)" | python | sed -r 's/\"/"/g;s/\\n/\n/g')
+        else
+            FINP="${inp}"
+        fi
+    fi
+    dbg "~~~~~~~~~~~~ output is"
+    dbg "${out}"
+    FOUT=$(python -m json.tool <<<"${out}" |& sed -r 's/\\"/"/g;s/\\n/\n/g'; exit ${PIPESTATUS[0]})
+    fout_rc="$?"
+    dbg "fout_rc: ${fout_rc}"
+    [[ "${FOUT}" = "No JSON object could be decoded" ]] && fout_rc=1
+
+
+
+    # Print out results
+
+    if [[ ( -n "$FINP" || -n "$FOUT" ) && ( -n "$state" && -n "$thost" ) ]]; then
+        # if we have any formated output
+        # and also we have both taget host and state of task
+        # lets print 'nice' header
+        echo "== $state @$thost =="
+    fi
+
+
+    dbg -e "\n\n"
+    dbg "== INPUT =="
+    if [[ -n "$FINP" ]]; then
+        echo -ne "item object: \033[0;32m";
+        echo "$FINP"
+        echo -ne "\033[00m";
+    elif [[ -n "$inp" ]]; then
+        echo -ne "item: \033[0;32m";
+        echo "${inp}"
+        echo -ne "\033[00m";
+    fi
+    dbg -e "\n\n"
+    dbg "== OUTPUT =="
+    if [[ "$fout_rc" == "0" ]]; then
+        echo -ne "task state: \033[0;33m";
+        echo "$FOUT"
+        echo -ne "\033[00m";
+    else
+        dbg "== $FOUT =="
+        echo "${CONTENT}"
+    fi
+
+    dbg -e "\n\n"
+done
