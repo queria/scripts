@@ -13,6 +13,7 @@ VMNAME="${VMNAME:-$BLAH}"
 if [[ "${INIT:-yes}" = "yes" && "${ADMIN_INIT:-yes}" = "yes" ]]; then
 	openstack project create --or-show $BLAH
 	openstack user create --or-show --password $BLAH --project $BLAH $BLAH
+	openstack role add --project $BLAH --user $BLAH _member_
 	if ! openstack flavor show m666.$BLAH; then
 		openstack flavor create --ram 64 --vcpus 1 m666.$BLAH
 	fi
@@ -20,13 +21,16 @@ fi
 
 export OS_USERNAME=$BLAH
 export OS_TENANT_NAME=$BLAH
+export OS_PROJECT_NAME=$BLAH
 export OS_PASSWORD=$BLAH
+
+[[ -f "$HOME/keystonerc_${BLAH}" ]] || env | grep '^OS_' | tee "$HOME/keystonerc_${BLAH}"
 
 if [[ "${INIT:-yes}" = "yes" ]]; then
 	if ! openstack keypair show $BLAH; then
 		openstack keypair create --public-key $HOME/.ssh/id_rsa.pub $BLAH
 	fi
-	if ! openstack security group rule list default | grep -q tcp | grep -q 65535; then
+	if ! openstack security group rule list default | grep tcp | grep -q 1:65535; then
 		openstack security group rule create --ingress --protocol tcp --dst-port 1:65535 default
 		openstack security group rule create --ingress --protocol icmp default
 	fi
@@ -63,7 +67,7 @@ if openstack server show $VMNAME; then
 fi
 NETID=$(openstack network show -f value -c id $BLAH)
 FLIP=$(openstack floating ip create -f value -c floating_ip_address $PUBNET)
-openstack server create --image ${BLAH}-cirros --key-name $BLAH --security-group default --flavor m666.${BLAH} --nic net-id=${NETID} $VMNAME
+openstack server create --wait --image ${BLAH}-cirros --key-name $BLAH --security-group default --flavor m666.${BLAH} --nic net-id=${NETID} $VMNAME
 openstack server add floating ip $VMNAME $FLIP
 
 MAXATT=15
