@@ -1,0 +1,11 @@
+#!/bin/bash
+if [[ "$1" = "-h" || "$1" = "--help" || -z "$1" || -z "$2" ]]; then
+    echo "Usage:"
+    echo ""
+    echo "  $0 <minutes> <message>"
+    echo ""
+    exit 0
+fi
+
+
+at "now + $1 minutes" <<<"notify-send -a 'Reminder' -t 600000 -u critical '==== it is time for ===' '$2' "
