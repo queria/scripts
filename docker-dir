@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# Assumes access to /var/lib/docker (be root, group or such)
+# Assumes overlay2 storage backend
+
+CONTNAME=$1
+
+CONTID=$(docker ps -q -f name=$CONTNAME --no-trunc)
+MNTID=$(cat /var/lib/docker/image/overlay2/layerdb/mounts/$CONTID/mount-id)
+readlink -f /var/lib/docker/overlay2/$MNTID/merged/
+
