@@ -8,6 +8,11 @@ for STATDIR in /sys/class/power_supply/*;
 do
 	[ $(cat ${STATDIR}/type) == "Battery" ] || continue;
 
+    # before sourcing new values, ensure we forgot previous battery ones
+    unset POWER_SUPPLY_NAME POWER_SUPPLY_MODEL_NAME POWER_SUPPLY_TECHNOLOGY POWER_SUPPLY_TYPE
+    unset POWER_SUPPLY_CHARGE_FULL POWER_SUPPLY_CHARGE_NOW
+    unset POWER_SUPPLY_ENERGY_FULL POWER_SUPPLY_ENERGY_NOW
+
 	#. ${STATDIR}/uevent
 	### bohuzel uevent obsahuje hodnoty neobalene v uvozovkach
 	### a lomitka v SERIAL_NUMBER narusi "source(.)"
@@ -16,6 +21,7 @@ do
 	do
 		eval $EXP
 	done
+
 
 	[ "${POWER_SUPPLY_PRESENT}" == "1" ] || continue;
 
@@ -37,6 +43,7 @@ do
 	echo -n "${DELIM}"
 	echo -n "${POWER_SUPPLY_STATUS}"
 	echo ""
+
 done
 
 if [[ "$SHOWTOTAL" == "1" ]]; then
