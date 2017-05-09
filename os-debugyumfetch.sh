@@ -25,3 +25,13 @@ while [[ $N -lt $MAXN ]]; do
 
     sleep 1
 done
+
+if [[ -d "$FAILDIR" ]]; then
+    echo ""
+    echo ""
+    echo "==== THERE WERE SOME FAILURES: look in $FAILDIR ===="
+    echo ""
+    echo ""
+else
+    echo "==== Seems all went ok ===="
+fi
