@@ -2,7 +2,9 @@
 
 set -ex
 
-MAXN=3
+MAXN=${1:--1}
+[[ "$MAXN" -lt 1 ]] && MAXN=3
+
 
 LOGS='yum.log yum_err.log urlgrab.log'
 FAILDIR="failed_$(date "+%y%m%d_%H_%M_%S")"
