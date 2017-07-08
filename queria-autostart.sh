@@ -26,15 +26,18 @@ runcond() {
     fi
 }
 
-pulseaudio -D -L module-cli-protocol-unix
 urxvtd -f -o
-runcond clipit
 #runcond xosd-sysmon
 runcond qslock-auto
 #runcond qsrun
-runcond dunst
 runcond nm-applet
 #runcond compton -b
 
-wpsetters=feh fbsetbg -C $HOME/wallpaper.png
+if [[ "$XDG_CURRENT_DESKTOP" != "KDE" ]]; then
+    pulseaudio -D -L module-cli-protocol-unix
+    runcond dunst
+    runcond clipit
+    wpsetters=feh fbsetbg -C $HOME/wallpaper.png
+fi
+
 xset s off
