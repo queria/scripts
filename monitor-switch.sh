@@ -55,6 +55,9 @@ case $CONFIG in
     home)
         xrandr --output VGA1 --auto --primary --output $DEFAULT --off
         ;;
+    rust)
+        xrandr --output DVI-I-1 --auto --primary --scale-from 1280x720
+        ;;
     work)
         xrandr --output DP2-2 --auto --right-of $DEFAULT --output $DEFAULT --auto --primary
         ;;
