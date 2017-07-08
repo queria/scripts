@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# find all *.MOD files recursively inside current work dir
+# and convert them into *.mp4 (if its not there already)
+
+while read V; do
+    VO="${V/.MOD/.mp4}"
+    VL="${V/.MOD/.log}"
+    ls -1sh "$V"
+    # possible add into -vf also "-vf scale=-2:720,format..." when rescale is wanted
+    # as per https://askubuntu.com/a/353282
+    if [[ -f "$VO" ]]; then
+        echo "=== Already converted"
+    else
+        if ! /usr/bin/time -f '%es' ffmpeg -i "$V" -c:v libx264 -crf 23 -preset medium -c:a aac -b:a 128k -movflags +faststart -vf format=yuv420p "${VO}" < /dev/null &> "${VL}"; then
+            rm -f "${VO}"
+            echo "$V - $VO - $VL   failed"
+            exit 1
+        fi
+    fi
+
+    { set +x; } 2>/dev/null
+    echo "=== Converted $(ls -1 */*.mp4 | wc -l) / $(ls -1 */*.MOD | wc -l) ...";
+    set -x
+done < <(find -iname \*.MOD | sort )

@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# generate thumbnail of last second from all
+# *.MOD files (and their *.mp4 version)
+# found one folder deep below current workdir (./blah/*.mp4)
+#
+# thumbnails are placed into ./thumbs/ (created if not existing)
+#
+# used for quickly visialy check that all files processed by
+# ./ffmpeg-convert do seem correct
+# (if last second thumbail looks exactly same we probably did 
+#  not converted just half of the file or such ...)
+
+set -x
+set -o errexit
+mkdir -p ./thumbs
+
+CNT=0
+while read V; do
+    VO="${V/.MOD/.mp4}"
+    P="./thumbs/${V//\//_}.png"
+    PO="./thumbs/${VO//\//_}.png"
+
+    ffmpeg -y -i "$V" -sseof 00:00:01 -vframes 1 "$P" < /dev/null
+    ffmpeg -y -i "$VO" -sseof 00:00:01 -vframes 1 "$PO" < /dev/null
+    CNT=$(( $CNT + 1 ))
+done < <(ls -1 */*.MOD | sort )
