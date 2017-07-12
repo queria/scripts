@@ -24,10 +24,10 @@ CONFIG=$1
 if [[ -z "$CONFIG" ]]; then
     if [[ "$(grep " connected " <<<"$XROUT" | wc -l)" = "1" ]]; then
         CONFIG=default
-    elif grep -q "DP2-2 connected" <<<"$XROUT" && grep -q "DP2-3 connected" <<<"$XROUT"; then
-        CONFIG=work2
     elif grep -q "DP2-2 connected" <<<"$XROUT"; then
         CONFIG=work
+    elif grep -q "DVI-I-1 connected" <<<"$XROUT" && grep -q "DVI-D-0 connected" <<<"$XROUT"; then
+        CONFIG=home
     elif grep -q "VGA1 connected" <<<"$XROUT"; then
         EXTRA_ID=$(md5sum /sys/class/drm/card0-VGA-1/edid | cut -f1 -d' ')
         echo "EDID: $EXTRA_ID"
@@ -60,13 +60,10 @@ xrandr --output $DEFAULT --auto --rotate normal --reflect normal --primary
 
 case $CONFIG in
     home)
-        xrandr --output VGA1 --auto --primary --output $DEFAULT --off
+        xrandr --output DVI-D-0 --auto --left-of $DEFAULT --output $DEFAULT --auto --primary
         ;;
     rust)
         xrandr --output DVI-I-1 --auto --primary --scale-from 1280x720
-        ;;
-    work2)
-        xrandr --output DP2-2 --auto --right-of $DEFAULT --output DP2-3 --auto --left-of $DEFAULT --output $DEFAULT --auto --primary
         ;;
     work)
         xrandr --output DP2-2 --auto --right-of $DEFAULT --output $DEFAULT --auto --primary
