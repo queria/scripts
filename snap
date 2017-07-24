@@ -1,0 +1,4 @@
+#!/bin/bash
+
+[[ -d "$HOME/Pictures/screen" ]] || mkdir -p $HOME/Pictures/screen
+scrot $HOME/Pictures/screen/$(date "+%y%m%d_%H_%M_%S").png
