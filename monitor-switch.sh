@@ -26,7 +26,7 @@ if [[ -z "$CONFIG" ]]; then
         CONFIG=default
     elif grep -q "DP2-2 connected" <<<"$XROUT"; then
         CONFIG=work
-    elif grep -q "DVI-I-1 connected" <<<"$XROUT" && grep -q "DVI-D-0 connected" <<<"$XROUT"; then
+    elif grep -q "DVI-I-[01] connected" <<<"$XROUT" && grep -q "DVI-D-0 connected" <<<"$XROUT"; then
         CONFIG=home
     elif grep -q "VGA1 connected" <<<"$XROUT"; then
         EXTRA_ID=$(md5sum /sys/class/drm/card0-VGA-1/edid | cut -f1 -d' ')
@@ -37,6 +37,8 @@ if [[ -z "$CONFIG" ]]; then
 
     #echo "Autodetected monitor layout: $CONFIG"
 fi
+
+#[[ "$CONFIG" = "home2" ]] && DEFAULT=DVI-D-0
 
 #DEFAULT="LVDS-0"
 DEFAULT="${DEFAULT:-$(xrandr |sed -rn 's/(.*) connected .*/\1/p'|head -n1)}"
@@ -61,6 +63,9 @@ xrandr --output $DEFAULT --auto --rotate normal --reflect normal --primary
 case $CONFIG in
     home)
         xrandr --output DVI-D-0 --auto --left-of $DEFAULT --output $DEFAULT --auto --primary
+        ;;
+    home2)
+        xrandr --output DVI-D-0 --off --output $DEFAULT --auto --primary
         ;;
     rust)
         xrandr --output DVI-I-1 --auto --primary --scale-from 1280x720
