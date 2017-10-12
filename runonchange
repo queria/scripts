@@ -29,8 +29,10 @@ if hash notify-send 2>/dev/null; then
     SENDNOTIFY=true
     source  $HOME/.dbus/session-bus/*-0 || SENDNOTIFY=false
     if [[ "$SENDNOTIFY" = "true" ]]; then
-        eval "$(cat /proc/$DBUS_SESSION_BUS_PID/environ | grep -z ^DISPLAY=)" || SENDNOTIFY=false
-        export DBUS_SESSION_BUS_ADDRESS DISPLAY
+        if [[ -z "$DISPLAY" ]]; then
+            eval "$(cat /proc/$DBUS_SESSION_BUS_PID/environ | grep -z ^DISPLAY=)" || SENDNOTIFY=false
+            export DBUS_SESSION_BUS_ADDRESS DISPLAY
+        fi
     fi
     if [[ "$SENDNOTIFY" = "true" ]]; then
         echo "# status report via dbus notifications enabled"
