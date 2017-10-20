@@ -1,0 +1,38 @@
+#!/bin/bash
+
+FEDORAS="$FEDORAS http://ftp.fi.muni.cz/pub/linux/fedora/linux"
+FEDORAS="$FEDORAS http://ftp.sh.cvut.cz/"
+FEDORAS="$FEDORAS http://mirror.karneval.cz/pub/linux/fedora/linux"
+FEDORAS="$FEDORAS http://mirror.slu.cz/fedora/linux"
+FEDORAS="$FEDORAS http://mirrors.nic.cz/fedora/linux"
+FEDORAS="$FEDORAS http://mirror.vutbr.cz/fedora"
+EPELS="$EPELS http://ftp.fi.muni.cz/pub/linux/fedora/epel"
+EPELS="$EPELS http://mirror.hosting90.cz/epel"
+EPELS="$EPELS http://mirror.karneval.cz/pub/linux/fedora/epel"
+EPELS="$EPELS http://mirror.slu.cz/epel"
+EPELS="$EPELS http://mirrors.nic.cz/epel"
+EPELS="$EPELS http://mirror.vutbr.cz/epel"
+
+test_sites() {
+    MAXTIME="$1"
+    SITES="$2"
+    URLSUFFIX="$3"
+    for SITE in $SITES; do
+        echo -n "$SITE "
+        V=$(/bin/time --format "%esec" curl -m $MAXTIME --fail --silent -o /dev/null "${SITE}${URLSUFFIX}" 2>&1)
+        if [[ $? = 0 ]]; then
+            echo "$V"
+        else
+            echo "FAILED after $V"
+        fi
+    done
+}
+
+echo "== Fedora =="
+test_sites 2 "$FEDORAS" | sort -n -k 2
+echo "== Fedora file =="
+test_sites 12 "$FEDORAS" "/releases/26/Workstation/x86_64/os/EFI/BOOT/BOOTX64.EFI" | sort -n -k 2
+echo "== Epel =="
+test_sites 2 "$EPELS" | sort -n -k 2
+echo "== Epel file =="
+test_sites 12 "$EPELS" "/fullfilelist" | sort -n -k 2
