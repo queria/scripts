@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# very dumb code, just to remember the template later
+for F in *.mp3; do
+    ffmpeg -nostdin -i "${F}" -acodec libvorbis "${F/%mp3/ogg}" < /dev/null &
+done
