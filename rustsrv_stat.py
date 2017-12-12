@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 from __future__ import print_function
 import socket
+import sys
 
-srv = ("90.176.152.68", 28015)
+if len(sys.argv) == 3:
+    srv = (str(sys.argv[1]), int(sys.argv[2]))
+else:
+    srv = ("90.176.152.68", 28015)
 query = "\xFF\xFF\xFF\xFF\x54Source Engine Query\x00"
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -25,4 +29,3 @@ print('%s - %d/%d' % (
     rep[0],
     ord(nums[1]),
     ord(nums[2])))
-
