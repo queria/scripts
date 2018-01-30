@@ -1,0 +1,18 @@
+#!/bin/bash
+set -ex
+
+if ! ps -C firefox &> /dev/null; then
+    if [[ "$1" != "--locked" ]]; then
+        flock /tmp/firefox-nightly-update.lock $0 --locked
+    else
+        rm -f /tmp/firefox /tmp/firefox-nightly.en-US.linux-x86_64.tar.bz2
+        cd /tmp/
+        curl -L --fail -o /tmp/firefox-nightly.en-US.linux-x86_64.tar.bz2 'https://download.mozilla.org/?product=firefox-nightly-latest-ssl&os=linux64&lang=en-US'
+        tar xf firefox-nightly.en-US.linux-x86_64.tar.bz2
+        rsync -rv --delete firefox/ /opt/nightly
+        rm -rf firefox
+    fi
+else
+    echo "Firefox is running ..."
+    ps -C firefox
+fi
