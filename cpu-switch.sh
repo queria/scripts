@@ -34,6 +34,12 @@ if [[ "$GOV" == "NONE" ]]; then
         GOV_FILE="${CPU}/scaling_governor"
         echo "$CPU: $(cat "$GOV_FILE")"
     done
+    for CPU in $CPUS; do
+        echo "Available choices:"
+        cat "${CPU}/scaling_available_governors" | \
+            sed -r 's/(powersave)/\1(min)/; s/(ondemand)/\1(optim)/; s/(performance)/\1(max)/';
+        break
+    done
     exit 0
 fi
 

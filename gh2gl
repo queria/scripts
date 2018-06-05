@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -x
+
+GHNAME="$1"
+GHREMOTE="$2"
+
+if [[ -z "$GHNAME" ]]; then
+    GHINFO=$(git remote -v | sed -nr 's|^(\S+)\s*git@github.com:queria/(.*).git .*|\1 \2|p' |head -n1)
+    if [[ -z "$GHINFO" ]]; then
+        echo "Not detected remote or repo name"
+    else
+        GHREMOTE="${GHINFO/ *}"
+        GHNAME="${GHINFO/* }"
+    fi
+fi
+
+[[ -n "$GHREMOTE" ]] && git remote rename "$GHREMOTE" github
+if [[ -n "$GHNAME" ]]; then
+    git remote add gitlab git@gitlab.com:queria/${GHNAME}.git
+    git fetch gitlab
+    git branch -u gitlab/master master
+fi
