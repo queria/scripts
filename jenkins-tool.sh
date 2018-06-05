@@ -163,4 +163,5 @@ if ! head -n2 "$CLI" | grep -q 'META-INF/PK'; then
     exit 1
 fi
 
+set -x
 java -jar "$CLI" $EXTRAOPTS -s $URL groovy $SCRIPT
