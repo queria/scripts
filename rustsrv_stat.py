@@ -3,7 +3,7 @@ from __future__ import print_function
 import socket
 import sys
 
-if len(sys.argv) == 3:
+if len(sys.argv) >= 3:
     srv = (str(sys.argv[1]), int(sys.argv[2]))
 else:
     srv = ("90.176.152.68", 28015)
@@ -19,6 +19,10 @@ except:
 
 # strip first \xff's
 rep = rep[0][6:]
+
+if '--dump' in sys.argv:
+    print(str(rep.split('\0x00')))
+
 # split first text fields up to last numbers list
 rep = rep.split('\x00', 5)
 # get list with numbers
