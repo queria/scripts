@@ -27,12 +27,16 @@ NOTIFYOPTS="-e DELETE_SELF"
 SENDNOTIFY=false
 if hash notify-send 2>/dev/null; then
     SENDNOTIFY=true
-    source  $HOME/.dbus/session-bus/*-0 || SENDNOTIFY=false
-    if [[ "$SENDNOTIFY" = "true" ]]; then
-        if [[ -z "$DISPLAY" ]]; then
-            eval "$(cat /proc/$DBUS_SESSION_BUS_PID/environ | grep -z ^DISPLAY=)" || SENDNOTIFY=false
-            export DBUS_SESSION_BUS_ADDRESS DISPLAY
+    if ! env | grep -q DBUS; then
+        source  $HOME/.dbus/session-bus/*-0 || SENDNOTIFY=false
+        if [[ "$SENDNOTIFY" = "true" ]]; then
+            if [[ -z "$DISPLAY" ]]; then
+                eval "$(cat /proc/$DBUS_SESSION_BUS_PID/environ | grep -z ^DISPLAY=)" || SENDNOTIFY=false
+                export DBUS_SESSION_BUS_ADDRESS DISPLAY
+            fi
         fi
+    else
+        echo "# some dbus variables already in env"
     fi
     if [[ "$SENDNOTIFY" = "true" ]]; then
         echo "# status report via dbus notifications enabled"
@@ -53,6 +57,7 @@ do
     eval_rc="$?"
     echo "-----------------------------------------------"
     if [[ "$SENDNOTIFY" = "true" ]]; then
+        echo 'going to send'
         if [[ "$eval_rc" = "0" ]]; then
             notify-send -a "runonchange" -t 130 -u low "OK" "$*"
         else
